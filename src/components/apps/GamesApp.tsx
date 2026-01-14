@@ -124,7 +124,6 @@ const GamesApp: React.FC = () => {
     const [currentQuestion, setCurrentQuestion] = useState(0);
     const [score, setScore] = useState(0);
     const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-    const [showResult, setShowResult] = useState(false);
     const [gameQuestions, setGameQuestions] = useState<Question[]>([]);
     const [timeLeft, setTimeLeft] = useState(30);
     const [streak, setStreak] = useState(0);
