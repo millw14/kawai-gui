@@ -1,0 +1,236 @@
+.vscode-app {
+    display: grid;
+    grid-template-columns: 48px 200px 1fr;
+    grid-template-rows: 1fr 22px;
+    height: 100%;
+    background: #1e1e1e;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+}
+
+/* Activity Bar */
+.activity-bar {
+    grid-row: 1 / -1;
+    background: #333333;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 5px 0;
+    gap: 5px;
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    opacity: 0.6;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: all 0.15s ease;
+}
+
+.activity-icon:hover {
+    opacity: 1;
+}
+
+.activity-icon.active {
+    opacity: 1;
+    border-left-color: white;
+}
+
+.activity-spacer {
+    flex: 1;
+}
+
+/* Sidebar */
+.sidebar {
+    background: #252526;
+    border-right: 1px solid #1e1e1e;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 10px 15px;
+    font-size: 11px;
+    color: #bbbbbb;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.file-tree {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.project-header {
+    padding: 8px 12px;
+    font-size: 11px;
+    color: #cccccc;
+    font-weight: 600;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    cursor: pointer;
+    color: #cccccc;
+    transition: background 0.1s ease;
+}
+
+.file-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.file-item.active {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.file-icon {
+    font-size: 14px;
+}
+
+.file-name {
+    font-size: 13px;
+}
+
+/* Editor Area */
+.editor-area {
+    display: flex;
+    flex-direction: column;
+    background: #1e1e1e;
+    overflow: hidden;
+}
+
+.editor-tabs {
+    display: flex;
+    background: #252526;
+    border-bottom: 1px solid #1e1e1e;
+}
+
+.editor-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 15px;
+    background: #2d2d2d;
+    color: #888;
+    font-size: 12px;
+    cursor: pointer;
+    border-right: 1px solid #1e1e1e;
+}
+
+.editor-tab.active {
+    background: #1e1e1e;
+    color: white;
+}
+
+.tab-close {
+    background: transparent;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 10px;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.tab-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+/* Code Area */
+.code-area {
+    flex: 1;
+    overflow: auto;
+    padding: 10px 0;
+    counter-reset: line;
+}
+
+.code-line {
+    display: flex;
+    line-height: 1.6;
+    min-height: 20px;
+}
+
+.line-number {
+    min-width: 50px;
+    text-align: right;
+    padding-right: 15px;
+    color: #858585;
+    user-select: none;
+}
+
+.line-content {
+    color: #d4d4d4;
+    white-space: pre;
+}
+
+/* Syntax Highlighting */
+.line-content :global(.keyword) {
+    color: #c586c0;
+}
+
+.line-content :global(.string) {
+    color: #ce9178;
+}
+
+.line-content :global(.bracket) {
+    color: #ffd700;
+}
+
+.line-content :global(.comment) {
+    color: #6a9955;
+}
+
+/* Status Bar */
+.status-bar {
+    grid-column: 1 / -1;
+    background: #007acc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 12px;
+    color: white;
+}
+
+.status-left, .status-right {
+    display: flex;
+    gap: 15px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .vscode-app {
+        grid-template-columns: 40px 1fr;
+    }
+    
+    .sidebar {
+        display: none;
+    }
+    
+    .activity-bar {
+        grid-row: 1;
+    }
+    
+    .editor-area {
+        grid-column: 2;
+    }
+    
+    .code-area {
+        font-size: 11px;
+    }
+    
+    .line-number {
+        min-width: 35px;
+        padding-right: 10px;
+    }
+}

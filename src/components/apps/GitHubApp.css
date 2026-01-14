@@ -1,0 +1,393 @@
+.github-app {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    grid-template-rows: 1fr 28px;
+    height: 100%;
+    background: #0d1117;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Sidebar */
+.gh-sidebar {
+    background: #161b22;
+    border-right: 1px solid #30363d;
+    display: flex;
+    flex-direction: column;
+}
+
+.repo-selector {
+    padding: 12px;
+    border-bottom: 1px solid #30363d;
+}
+
+.current-repo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: #0d1117;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.current-repo:hover {
+    background: #21262d;
+}
+
+.repo-icon {
+    font-size: 20px;
+}
+
+.repo-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.repo-name {
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.repo-branch {
+    color: #8b949e;
+    font-size: 12px;
+}
+
+.dropdown-arrow {
+    color: #8b949e;
+    font-size: 10px;
+}
+
+.repo-list-dropdown {
+    padding: 8px;
+    border-bottom: 1px solid #30363d;
+}
+
+.repo-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    color: #c9d1d9;
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.repo-item:hover {
+    background: #21262d;
+}
+
+.repo-item.active {
+    background: rgba(56, 139, 253, 0.15);
+    color: #58a6ff;
+}
+
+.change-badge {
+    background: #238636;
+    color: white;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.sidebar-nav {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: transparent;
+    border: none;
+    color: #c9d1d9;
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s ease;
+}
+
+.nav-item:hover {
+    background: #21262d;
+}
+
+.nav-item.active {
+    background: #21262d;
+    color: white;
+}
+
+.nav-badge {
+    margin-left: auto;
+    background: #238636;
+    color: white;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+/* Main Content */
+.gh-main {
+    background: #0d1117;
+    overflow: auto;
+}
+
+.view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #30363d;
+}
+
+.view-header h2 {
+    color: white;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.action-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.action-btn.secondary {
+    background: transparent;
+    border: 1px solid #30363d;
+    color: #c9d1d9;
+}
+
+.action-btn.secondary:hover {
+    background: #21262d;
+}
+
+.action-btn.primary {
+    background: #238636;
+    border: 1px solid #238636;
+    color: white;
+}
+
+.action-btn.primary:hover {
+    background: #2ea043;
+}
+
+/* Changes View */
+.commit-form {
+    padding: 20px;
+    border-bottom: 1px solid #30363d;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.commit-summary {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: white;
+    font-size: 14px;
+    outline: none;
+}
+
+.commit-summary:focus {
+    border-color: #58a6ff;
+}
+
+.commit-description {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: white;
+    font-size: 13px;
+    min-height: 60px;
+    resize: vertical;
+    outline: none;
+    font-family: inherit;
+}
+
+.commit-description:focus {
+    border-color: #58a6ff;
+}
+
+.file-changes {
+    padding: 15px 20px;
+}
+
+.section-header {
+    color: #8b949e;
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.change-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+}
+
+.change-item:hover {
+    background: #161b22;
+}
+
+.change-item input[type="checkbox"] {
+    accent-color: #238636;
+}
+
+.status-icon {
+    font-size: 14px;
+}
+
+.file-path {
+    flex: 1;
+    color: #c9d1d9;
+    font-size: 13px;
+    font-family: 'Consolas', monospace;
+}
+
+.line-changes {
+    color: #8b949e;
+    font-size: 12px;
+    font-family: 'Consolas', monospace;
+}
+
+/* History View */
+.branch-indicator {
+    color: #8b949e;
+    font-size: 13px;
+}
+
+.commit-list {
+    padding: 20px;
+}
+
+.commit-item {
+    display: flex;
+    gap: 15px;
+    padding: 15px 0;
+    border-bottom: 1px solid #21262d;
+    position: relative;
+}
+
+.commit-dot {
+    width: 10px;
+    height: 10px;
+    background: #238636;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+}
+
+.commit-dot::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 30px;
+    bottom: 0;
+    width: 2px;
+    background: #30363d;
+}
+
+.commit-item:last-child .commit-dot::before {
+    display: none;
+}
+
+.commit-content {
+    flex: 1;
+}
+
+.commit-message {
+    color: #c9d1d9;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.commit-meta {
+    display: flex;
+    gap: 15px;
+    font-size: 12px;
+    color: #8b949e;
+}
+
+.commit-hash {
+    font-family: 'Consolas', monospace;
+    color: #58a6ff;
+}
+
+/* Status Bar */
+.gh-statusbar {
+    grid-column: 1 / -1;
+    background: #161b22;
+    border-top: 1px solid #30363d;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 15px;
+    font-size: 12px;
+}
+
+.status-left, .status-right {
+    display: flex;
+    gap: 20px;
+}
+
+.status-item {
+    color: #8b949e;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .github-app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr 28px;
+    }
+    
+    .gh-sidebar {
+        border-right: none;
+        border-bottom: 1px solid #30363d;
+    }
+    
+    .repo-list-dropdown {
+        display: none;
+    }
+    
+    .sidebar-nav {
+        flex-direction: row;
+    }
+    
+    .nav-item {
+        flex: 1;
+        justify-content: center;
+    }
+    
+    .header-actions {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .commit-meta {
+        flex-wrap: wrap;
+    }
+}

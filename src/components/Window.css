@@ -1,0 +1,157 @@
+.window {
+    position: absolute;
+    background: #1e1e2e;
+    border-radius: 12px;
+    box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 300px;
+    min-height: 200px;
+    transition: box-shadow 0.2s ease;
+}
+
+.window.active {
+    box-shadow: 
+        0 25px 80px rgba(0, 0, 0, 0.6),
+        0 0 0 1px rgba(255, 182, 193, 0.3),
+        0 0 30px rgba(255, 182, 193, 0.1);
+}
+
+.window.maximized {
+    border-radius: 0;
+}
+
+/* Title Bar */
+.window-titlebar {
+    height: 36px;
+    background: linear-gradient(180deg, #2d2d3d 0%, #252535 100%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    cursor: grab;
+    user-select: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.window-titlebar:active {
+    cursor: grabbing;
+}
+
+.window.maximized .window-titlebar {
+    cursor: default;
+}
+
+.titlebar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+}
+
+.window-icon {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+}
+
+.window-title {
+    color: #ccc;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.titlebar-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.titlebar-btn {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    color: transparent;
+    transition: all 0.15s ease;
+}
+
+.titlebar-btn:hover {
+    color: rgba(0, 0, 0, 0.8);
+}
+
+.titlebar-btn.minimize {
+    background: #febd2f;
+}
+
+.titlebar-btn.maximize {
+    background: #28c840;
+}
+
+.titlebar-btn.close {
+    background: #ff5f57;
+}
+
+.titlebar-btn span {
+    line-height: 1;
+}
+
+/* Content */
+.window-content {
+    flex: 1;
+    overflow: auto;
+    background: #1e1e2e;
+}
+
+/* Resize Handle */
+.resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 15px;
+    height: 15px;
+    cursor: nwse-resize;
+    background: linear-gradient(
+        135deg,
+        transparent 30%,
+        rgba(255, 255, 255, 0.1) 30%,
+        rgba(255, 255, 255, 0.1) 40%,
+        transparent 40%,
+        transparent 60%,
+        rgba(255, 255, 255, 0.1) 60%,
+        rgba(255, 255, 255, 0.1) 70%,
+        transparent 70%
+    );
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .window {
+        min-width: unset;
+        min-height: unset;
+    }
+    
+    .window-titlebar {
+        height: 44px;
+        padding: 0 16px;
+    }
+    
+    .titlebar-btn {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .resize-handle {
+        display: none;
+    }
+}

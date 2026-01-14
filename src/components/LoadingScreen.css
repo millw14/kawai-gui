@@ -1,0 +1,237 @@
+.loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    overflow: hidden;
+}
+
+.loading-content {
+    text-align: center;
+    position: relative;
+    z-index: 2;
+}
+
+/* Cute Mascot */
+.loading-mascot {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 30px;
+    position: relative;
+    animation: bounce 2s ease-in-out infinite;
+}
+
+.mascot-face {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(180deg, #ffd1dc 0%, #ffb6c1 100%);
+    border-radius: 50%;
+    position: absolute;
+    top: 20px;
+    left: 10px;
+    box-shadow: 0 10px 30px rgba(255, 182, 193, 0.4);
+}
+
+.mascot-eyes {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    padding-top: 30px;
+}
+
+.eye {
+    width: 16px;
+    height: 20px;
+    background: #2d2d2d;
+    border-radius: 50%;
+    position: relative;
+    animation: blink 4s infinite;
+}
+
+.pupil {
+    width: 6px;
+    height: 6px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 4px;
+    left: 3px;
+}
+
+.mascot-blush {
+    width: 18px;
+    height: 10px;
+    background: #ff8fa3;
+    border-radius: 50%;
+    position: absolute;
+    top: 55px;
+    opacity: 0.6;
+}
+
+.mascot-blush.left { left: 12px; }
+.mascot-blush.right { right: 12px; }
+
+.mascot-mouth {
+    text-align: center;
+    font-size: 14px;
+    color: #d35d6e;
+    margin-top: 5px;
+    font-family: serif;
+}
+
+.mascot-ears .ear {
+    width: 30px;
+    height: 40px;
+    background: linear-gradient(180deg, #ffd1dc 0%, #ffb6c1 100%);
+    position: absolute;
+    top: 0;
+    border-radius: 50% 50% 0 0;
+}
+
+.mascot-ears .ear.left {
+    left: 10px;
+    transform: rotate(-20deg);
+}
+
+.mascot-ears .ear.right {
+    right: 10px;
+    transform: rotate(20deg);
+}
+
+.mascot-ears .ear::after {
+    content: '';
+    width: 15px;
+    height: 20px;
+    background: #ff8fa3;
+    position: absolute;
+    top: 8px;
+    left: 7px;
+    border-radius: 50% 50% 0 0;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes blink {
+    0%, 45%, 55%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(0.1); }
+}
+
+/* Title */
+.loading-title {
+    font-family: 'Quicksand', 'Outfit', sans-serif;
+    font-size: 3rem;
+    font-weight: 700;
+    background: linear-gradient(90deg, #ff8fa3 0%, #ffb6c1 50%, #e6e6fa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 10px;
+    text-shadow: 0 0 40px rgba(255, 182, 193, 0.5);
+}
+
+.loading-subtitle {
+    color: #a8a8d8;
+    font-size: 1rem;
+    margin-bottom: 40px;
+    letter-spacing: 2px;
+}
+
+/* Progress Bar */
+.progress-container {
+    width: 300px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    margin: 0 auto 20px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ff8fa3 0%, #ffb6c1 50%, #e6e6fa 100%);
+    border-radius: 10px;
+    transition: width 0.3s ease;
+    position: relative;
+}
+
+.progress-glow {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20px;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6));
+    animation: glow-move 1s infinite;
+}
+
+@keyframes glow-move {
+    0% { opacity: 0; }
+    50% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+.loading-text {
+    color: #b8b8d8;
+    font-size: 0.9rem;
+}
+
+/* Particles */
+.particles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.particle {
+    position: absolute;
+    bottom: -20px;
+    color: rgba(255, 182, 193, 0.6);
+    font-size: 12px;
+    animation: float-up linear infinite;
+}
+
+@keyframes float-up {
+    0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-100vh) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .loading-title {
+        font-size: 2rem;
+    }
+    
+    .progress-container {
+        width: 250px;
+    }
+    
+    .loading-mascot {
+        transform: scale(0.8);
+    }
+}

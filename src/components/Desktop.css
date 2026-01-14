@@ -1,0 +1,133 @@
+.desktop {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+}
+
+/* Background */
+.desktop-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #0c0c1e 0%, #1a1a3e 50%, #2d1b4e 100%);
+    z-index: 0;
+}
+
+.grid-pattern {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        linear-gradient(rgba(255, 182, 193, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 182, 193, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+}
+
+.gradient-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        radial-gradient(ellipse at 20% 80%, rgba(255, 107, 107, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(107, 107, 255, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(255, 182, 193, 0.05) 0%, transparent 70%);
+}
+
+/* Desktop Icons */
+.desktop-icons {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    z-index: 5;
+}
+
+.desktop-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 80px;
+}
+
+.desktop-icon:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.05);
+}
+
+.desktop-icon:active {
+    transform: scale(0.95);
+}
+
+.icon-image {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 8px;
+}
+
+.icon-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.desktop-icon:hover .icon-image {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    transform: translateY(-2px);
+}
+
+.icon-label {
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .desktop-icons {
+        flex-direction: row;
+        flex-wrap: wrap;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        gap: 10px;
+    }
+    
+    .desktop-icon {
+        width: 70px;
+        padding: 8px;
+    }
+    
+    .icon-image {
+        width: 45px;
+        height: 45px;
+        padding: 6px;
+    }
+    
+    .icon-label {
+        font-size: 11px;
+    }
+}

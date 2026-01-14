@@ -1,0 +1,727 @@
+.games-app {
+    height: 100%;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Wallet Bar */
+.wallet-bar {
+    padding: 12px 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.connect-wallet-btn {
+    background: linear-gradient(90deg, #9945FF, #14F195);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.connect-wallet-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(153, 69, 255, 0.4);
+}
+
+.connect-wallet-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.wallet-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.wallet-address {
+    color: #14F195;
+    font-family: monospace;
+    font-size: 14px;
+}
+
+.token-balance {
+    color: #ccc;
+    font-size: 14px;
+}
+
+.disconnect-btn {
+    background: rgba(255, 100, 100, 0.2);
+    border: 1px solid rgba(255, 100, 100, 0.3);
+    padding: 6px 12px;
+    border-radius: 8px;
+    color: #ff6b6b;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.disconnect-btn:hover {
+    background: rgba(255, 100, 100, 0.3);
+}
+
+/* Rules Section */
+.rules-section {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 0 auto 30px;
+    max-width: 500px;
+}
+
+.rules-section h3 {
+    color: #ff8fa3;
+    margin-bottom: 15px;
+}
+
+.rules-section ul {
+    list-style: none;
+    padding: 0;
+}
+
+.rules-section li {
+    padding: 8px 0;
+    color: #ccc;
+    font-size: 14px;
+}
+
+.token-info {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 12px;
+    color: #888;
+}
+
+.token-info code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #14F195;
+    font-family: monospace;
+}
+
+.buy-link {
+    display: block;
+    margin-top: 10px;
+    color: #ff8fa3;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.buy-link:hover {
+    text-decoration: underline;
+}
+
+.get-wallet-link {
+    display: block;
+    margin-top: 15px;
+    color: #888;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.get-wallet-link:hover {
+    color: #14F195;
+}
+
+/* Games Menu */
+.games-menu {
+    flex: 1;
+    padding: 30px;
+    text-align: center;
+    overflow: auto;
+}
+
+.menu-header {
+    margin-bottom: 40px;
+}
+
+.menu-header h1 {
+    font-size: 2.5rem;
+    color: white;
+    margin-bottom: 10px;
+}
+
+.menu-header p {
+    color: #888;
+    font-size: 1.1rem;
+}
+
+.games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 25px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.game-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px solid transparent;
+    border-radius: 16px;
+    padding: 30px 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.game-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-5px);
+}
+
+.game-card.locked {
+    opacity: 0.6;
+    cursor: not-allowed;
+    position: relative;
+}
+
+.game-card.locked:hover {
+    transform: none;
+}
+
+.lock-overlay {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 24px;
+}
+
+.game-icon {
+    font-size: 50px;
+    margin-bottom: 15px;
+}
+
+.game-card h3 {
+    color: white;
+    font-size: 1.3rem;
+    margin-bottom: 8px;
+}
+
+.game-card p {
+    color: #888;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+}
+
+.game-card button {
+    border: none;
+    padding: 10px 30px;
+    border-radius: 20px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.game-card button:hover {
+    transform: scale(1.05);
+}
+
+.game-card button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    background: linear-gradient(135deg, #1e1e2e 0%, #2d2d4d 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 30px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    position: relative;
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from { 
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-image {
+    width: 200px;
+    height: 200px;
+    object-fit: contain;
+    margin-bottom: 20px;
+    border-radius: 12px;
+}
+
+.modal-content h2 {
+    color: white;
+    margin-bottom: 15px;
+    font-size: 1.5rem;
+}
+
+.modal-content p {
+    color: #aaa;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.modal-content .current-balance {
+    color: #ff6b6b;
+    font-weight: 600;
+    margin: 15px 0;
+}
+
+.modal-content .access-granted {
+    color: #14F195;
+    font-weight: 600;
+    font-size: 16px;
+    margin: 20px 0;
+}
+
+.buy-info {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-btn {
+    display: inline-block;
+    padding: 12px 30px;
+    border-radius: 25px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    margin-top: 15px;
+}
+
+.modal-btn.primary {
+    background: linear-gradient(90deg, #9945FF, #14F195);
+    color: white;
+}
+
+.modal-btn.buy {
+    background: linear-gradient(90deg, #FF6B6B, #FF8FA3);
+    color: white;
+}
+
+.modal-btn.success {
+    background: linear-gradient(90deg, #14F195, #4CAF50);
+    color: white;
+}
+
+.modal-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(255, 143, 163, 0.3);
+}
+
+.modal-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 20px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.modal-close:hover {
+    color: white;
+}
+
+/* Game Container */
+.game-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.game-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.back-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.back-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Snake Game */
+.snake-game {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+}
+
+.game-info {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 20px;
+    font-size: 1.2rem;
+    color: white;
+}
+
+.canvas-container {
+    position: relative;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.canvas-container canvas {
+    display: block;
+}
+
+.game-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.game-overlay h2 {
+    color: white;
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.game-overlay p {
+    color: #888;
+    margin-bottom: 20px;
+}
+
+.game-overlay button {
+    background: linear-gradient(90deg, #4CAF50, #81C784);
+    border: none;
+    padding: 12px 30px;
+    border-radius: 25px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.game-overlay button:hover {
+    transform: scale(1.05);
+}
+
+.mobile-controls {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.mobile-controls button {
+    width: 50px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.mobile-controls button:hover, .mobile-controls button:active {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.controls-row {
+    display: flex;
+    gap: 5px;
+}
+
+/* Memory Game */
+.memory-game {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+}
+
+.memory-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    max-width: 400px;
+    width: 100%;
+}
+
+.memory-card {
+    aspect-ratio: 1;
+    perspective: 1000px;
+    cursor: pointer;
+}
+
+.card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.5s;
+    transform-style: preserve-3d;
+}
+
+.memory-card.flipped .card-inner {
+    transform: rotateY(180deg);
+}
+
+.card-front, .card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+}
+
+.card-front {
+    background: linear-gradient(135deg, #ff8fa3, #ffb6c1);
+    color: white;
+    font-weight: bold;
+}
+
+.card-back {
+    background: #2d2d4d;
+    transform: rotateY(180deg);
+}
+
+.win-message {
+    margin-top: 30px;
+    text-align: center;
+}
+
+.win-message h2 {
+    color: white;
+    font-size: 1.8rem;
+    margin-bottom: 10px;
+}
+
+.win-message p {
+    color: #888;
+    margin-bottom: 20px;
+}
+
+.win-message button {
+    background: linear-gradient(90deg, #FF9800, #FFC107);
+    border: none;
+    padding: 12px 30px;
+    border-radius: 25px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Clicker Game */
+.clicker-game {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 250px;
+    height: 100%;
+}
+
+.clicker-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+}
+
+.cookie-display {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.cookie-display h1 {
+    font-size: 3rem;
+    color: white;
+    margin-bottom: 10px;
+}
+
+.cookie-display p {
+    color: #888;
+    font-size: 1rem;
+}
+
+.big-cookie {
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle at 30% 30%, #d4a574, #8b6914);
+    border: none;
+    border-radius: 50%;
+    font-size: 100px;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+    box-shadow: 0 10px 40px rgba(139, 105, 20, 0.4);
+}
+
+.big-cookie:hover {
+    transform: scale(1.05);
+}
+
+.big-cookie:active {
+    transform: scale(0.95);
+}
+
+.clicker-shop {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 20px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    overflow-y: auto;
+}
+
+.clicker-shop h3 {
+    color: white;
+    margin-bottom: 20px;
+    font-size: 1.2rem;
+}
+
+.shop-item {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.shop-item.available:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #4CAF50;
+}
+
+.shop-item.locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.item-icon {
+    color: white;
+    font-size: 1rem;
+}
+
+.item-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.item-cost {
+    color: #FFC107;
+    font-size: 0.9rem;
+}
+
+.item-owned {
+    color: #888;
+    font-size: 0.8rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .games-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .memory-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+    }
+    
+    .card-front, .card-back {
+        font-size: 1.5rem;
+    }
+    
+    .canvas-container canvas {
+        width: 300px;
+        height: 300px;
+    }
+    
+    .clicker-game {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto;
+    }
+    
+    .clicker-shop {
+        border-left: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        max-height: 200px;
+    }
+    
+    .big-cookie {
+        width: 150px;
+        height: 150px;
+        font-size: 70px;
+    }
+    
+    .cookie-display h1 {
+        font-size: 2rem;
+    }
+}
