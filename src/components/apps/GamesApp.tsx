@@ -1,80 +1,170 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import './GamesApp.css';
-
-type GameType = 'menu' | 'snake' | 'memory' | 'clicker';
 
 const TOKEN_MINT = '6ggxkzDCAB3hjiRFUGdiNfcW2viET3REtsbEmVFXpump';
 const REQUIRED_AMOUNT = 1_000_000;
 
-interface WalletState {
-    connected: boolean;
-    address: string | null;
-    balance: number;
-    hasEnoughTokens: boolean;
-    loading: boolean;
+interface Question {
+    id: number;
+    question: string;
+    options: string[];
+    answer: number; // 0-indexed
+    category: string;
 }
 
+const QUESTIONS: Question[] = [
+    { id: 1, question: "What is the primary purpose of the Kawai project?", options: ["To create NFT artwork on Windows", "To provide a native Windows toolkit for Solana development", "To replace Rust with JavaScript for blockchain", "To build games using Solana"], answer: 1, category: "Basics" },
+    { id: 2, question: "Which operating system is Kawai specifically designed for?", options: ["Linux only", "macOS only", "Windows", "Android"], answer: 2, category: "Basics" },
+    { id: 3, question: "What major tools does Kawai remove the need for?", options: ["Git and GitHub", "Python and Node.js", "WSL, Docker, and Linux VMs", "Visual Studio Code"], answer: 2, category: "Basics" },
+    { id: 4, question: "What slogan best represents Kawai's core philosophy?", options: ["Build once, run everywhere", "No WSL. No VM. No Linux. Just Windows.", "Code faster in the cloud", "Blockchain made simple"], answer: 1, category: "Basics" },
+    { id: 5, question: "Which blockchain ecosystem does Kawai support?", options: ["Ethereum", "Binance Smart Chain", "Solana", "Polygon"], answer: 2, category: "Basics" },
+    { id: 6, question: "What programming language is Kawai primarily written in?", options: ["JavaScript", "Python", "Rust", "Go"], answer: 2, category: "Basics" },
+    { id: 7, question: "What type of application is Kawai mainly?", options: ["Mobile application", "Web dashboard", "Command Line Interface (CLI)", "Browser extension"], answer: 2, category: "Basics" },
+    { id: 8, question: "What license does the Kawai project use?", options: ["GPL v3", "Apache 2.0", "MIT", "BSD"], answer: 2, category: "Basics" },
+    { id: 9, question: "Who is Kawai mainly built for?", options: ["Linux kernel developers", "Mobile app designers", "Windows developers building on Solana", "Game developers only"], answer: 2, category: "Basics" },
+    { id: 10, question: "What is the name of the project mascot?", options: ["Solana-chan", "Kawai-chan", "Rusty-chan", "Anchor-kun"], answer: 1, category: "Basics" },
+    { id: 11, question: "Why is Kawai faster than WSL for development?", options: ["It uses Java instead of Rust", "It runs as a native Windows process", "It stores data in the cloud", "It compiles only in debug mode"], answer: 1, category: "Why Kawai" },
+    { id: 12, question: "How does Kawai reduce memory usage compared to WSL?", options: ["By disabling logging", "By using compressed binaries", "By avoiding virtual machines and overhead", "By running only in browser"], answer: 2, category: "Why Kawai" },
+    { id: 13, question: "What type of file system does Kawai use for better I/O performance?", options: ["FAT32", "EXT4", "NTFS", "ZFS"], answer: 2, category: "Why Kawai" },
+    { id: 14, question: "How does Kawai handle networking compared to WSL?", options: ["Uses VPN tunnels", "Uses virtual adapters", "Uses direct sockets", "Uses only HTTP"], answer: 2, category: "Why Kawai" },
+    { id: 15, question: "What is one major setup advantage of Kawai?", options: ["Requires Linux installation", "Works only in containers", "One-command setup", "Needs dual boot"], answer: 2, category: "Why Kawai" },
+    { id: 16, question: "What does `kawai validator start` do?", options: ["Starts Docker containers", "Connects to mainnet only", "Launches a native Windows Solana test validator", "Installs Rust"], answer: 2, category: "Validator" },
+    { id: 17, question: "Which of the following is NOT required to run Kawai's validator?", options: ["Docker", "WSL", "Linux VM", "All of the above"], answer: 3, category: "Validator" },
+    { id: 18, question: "How do you stop the validator?", options: ["kawai validator close", "kawai stop validator", "kawai validator stop", "kawai exit validator"], answer: 2, category: "Validator" },
+    { id: 19, question: "Which command checks whether the validator is running?", options: ["kawai status", "kawai validator status", "kawai check validator", "kawai info"], answer: 1, category: "Validator" },
+    { id: 20, question: "Which flag allows you to reset the validator state?", options: ["--clear", "--wipe", "--reset", "--new"], answer: 2, category: "Validator" },
+    { id: 21, question: "How can you specify a custom port for the validator?", options: ["--bind", "--listen", "--port", "--address"], answer: 2, category: "Validator" },
+    { id: 22, question: "What command shows validator logs and epoch info?", options: ["kawai logs", "kawai validator logs", "kawai validator info", "kawai debug"], answer: 1, category: "Validator" },
+    { id: 23, question: "How does Kawai's validator run?", options: ["In Docker container", "In Linux VM", "As a native Windows process", "In browser"], answer: 2, category: "Validator" },
+    { id: 24, question: "What is special about Kawai's local validator?", options: ["Requires internet always", "Uses Ethereum backend", "Pure Windows implementation", "Only works on macOS"], answer: 2, category: "Validator" },
+    { id: 25, question: "Which of these backends is considered deprecated in Kawai?", options: ["Native Windows", "Docker", "WSL", "Cloud"], answer: 1, category: "Validator" },
+    { id: 26, question: "What does `kawai build program` do?", options: ["Creates a wallet", "Compiles Solana programs", "Starts validator", "Transfers SOL"], answer: 1, category: "Build" },
+    { id: 27, question: "What file extension does Kawai output after building a program?", options: [".exe", ".wasm", ".so", ".dll"], answer: 2, category: "Build" },
+    { id: 28, question: "Where is the compiled program stored?", options: ["bin/output/", "target/deploy/", "dist/", "build/"], answer: 1, category: "Build" },
+    { id: 29, question: "Which flag enables optimized builds?", options: ["--opt", "--fast", "--release", "--pro"], answer: 2, category: "Build" },
+    { id: 30, question: "Which flag provides detailed output during compilation?", options: ["--details", "--verbose", "--debug", "--trace"], answer: 1, category: "Build" },
+    { id: 31, question: "What does the `--backend` option allow?", options: ["Change wallet", "Choose build engine", "Switch networks", "Modify logs"], answer: 1, category: "Build" },
+    { id: 32, question: "Which backend is NOT available?", options: ["auto", "docker", "wsl", "kubernetes"], answer: 3, category: "Build" },
+    { id: 33, question: "How do you check the build toolchain status?", options: ["kawai status", "kawai build status", "kawai toolchain", "kawai info"], answer: 1, category: "Build" },
+    { id: 34, question: "Can Kawai build programs without leaving Windows?", options: ["No", "Only in Docker", "Only in WSL", "Yes"], answer: 3, category: "Build" },
+    { id: 35, question: "What does cloud build provide?", options: ["Offline compilation", "Backup storage", "Remote fallback build environment", "NFT minting"], answer: 2, category: "Build" },
+    { id: 36, question: "Does Kawai support the Anchor framework?", options: ["No", "Partially", "Yes, fully", "Only on Linux"], answer: 2, category: "Anchor" },
+    { id: 37, question: "How do you create a new Anchor project?", options: ["kawai new anchor", "kawai anchor init", "kawai create anchor", "kawai init anchor"], answer: 1, category: "Anchor" },
+    { id: 38, question: "How do you build an Anchor project?", options: ["kawai anchor compile", "kawai anchor build", "kawai build anchor", "kawai make anchor"], answer: 1, category: "Anchor" },
+    { id: 39, question: "Which command tests Anchor programs?", options: ["kawai anchor run", "kawai anchor test", "kawai test anchor", "kawai run tests"], answer: 1, category: "Anchor" },
+    { id: 40, question: "What happens automatically when you run `kawai anchor test`?", options: ["Deletes wallet", "Starts validator", "Switches network", "Exports key"], answer: 1, category: "Anchor" },
+    { id: 41, question: "How do you deploy an Anchor program?", options: ["kawai deploy anchor", "kawai anchor deploy", "kawai publish anchor", "kawai ship anchor"], answer: 1, category: "Anchor" },
+    { id: 42, question: "Which clusters can you deploy to?", options: ["Only devnet", "Devnet and testnet", "Devnet, testnet, mainnet", "Only local"], answer: 2, category: "Anchor" },
+    { id: 43, question: "What does `kawai anchor idl` do?", options: ["Builds program", "Tests contracts", "Generates interface definition", "Imports wallet"], answer: 2, category: "Anchor" },
+    { id: 44, question: "Which language is used for Anchor tests?", options: ["Python", "Rust", "TypeScript", "Go"], answer: 2, category: "Anchor" },
+    { id: 45, question: "What key advantage does Kawai provide for Anchor on Windows?", options: ["Requires WSL", "Runs natively", "Needs Docker", "Needs Linux VM"], answer: 1, category: "Anchor" },
+    { id: 46, question: "How do you create a new wallet?", options: ["kawai new wallet", "kawai wallet add", "kawai wallet create", "kawai make wallet"], answer: 2, category: "Wallet" },
+    { id: 47, question: "Which command imports an existing wallet?", options: ["kawai wallet import", "kawai wallet load", "kawai wallet add", "kawai wallet sync"], answer: 0, category: "Wallet" },
+    { id: 48, question: "Which command lists all wallets?", options: ["kawai wallets", "kawai wallet list", "kawai wallet show", "kawai wallet status"], answer: 1, category: "Wallet" },
+    { id: 49, question: "How do you set a default wallet?", options: ["kawai wallet choose", "kawai wallet main", "kawai wallet default", "kawai wallet primary"], answer: 2, category: "Wallet" },
+    { id: 50, question: "What command exports a wallet?", options: ["kawai wallet export", "kawai wallet save", "kawai wallet backup", "kawai wallet print"], answer: 0, category: "Wallet" },
+    { id: 51, question: "Which command checks your SOL balance in Kawai?", options: ["kawai check", "kawai wallet", "kawai balance", "kawai sol"], answer: 2, category: "Commands" },
+    { id: 52, question: "How do you request free SOL on devnet?", options: ["kawai free-sol", "kawai faucet", "kawai airdrop", "kawai claim"], answer: 2, category: "Commands" },
+    { id: 53, question: "Which command sends SOL to another wallet?", options: ["kawai send", "kawai transfer", "kawai pay", "kawai move"], answer: 1, category: "Commands" },
+    { id: 54, question: "Which network options does Kawai support?", options: ["Only mainnet", "Devnet only", "Devnet, Testnet, Mainnet", "Local only"], answer: 2, category: "Commands" },
+    { id: 55, question: "What does 'kawai monitor' do?", options: ["Starts validator", "Watches accounts in real time", "Deploys programs", "Checks build tools"], answer: 1, category: "Commands" },
+    { id: 56, question: "Can Kawai monitor multiple accounts at once?", options: ["No", "Only two", "Yes", "Only in cloud"], answer: 2, category: "Commands" },
+    { id: 57, question: "What command shows installed build tools?", options: ["kawai tools", "kawai build status", "kawai check", "kawai info"], answer: 1, category: "Commands" },
+    { id: 58, question: "Which toolchain can Kawai install automatically?", options: ["Node.js", "Python", "Solana", "Git"], answer: 2, category: "Commands" },
+    { id: 59, question: "Which command installs Anchor?", options: ["kawai install anchor", "kawai toolchain install-anchor", "kawai add anchor", "kawai get anchor"], answer: 1, category: "Commands" },
+    { id: 60, question: "Does Kawai require Docker to work?", options: ["Yes always", "No", "Only for wallets", "Only for Anchor"], answer: 1, category: "Commands" },
+    { id: 61, question: "Where is the CLI located in the project structure?", options: ["/src", "/apps/cli", "/bin", "/tools"], answer: 1, category: "Structure" },
+    { id: 62, question: "Where is the desktop app located?", options: ["/apps/desktop", "/gui", "/ui", "/desktop"], answer: 0, category: "Structure" },
+    { id: 63, question: "Where is the SDK core found?", options: ["/crates/kawai-sdk", "/sdk", "/lib", "/core"], answer: 0, category: "Structure" },
+    { id: 64, question: "Where is the validator implementation stored?", options: ["/validator", "/crates/kawai-validator", "/tools/validator", "/apps/validator"], answer: 1, category: "Structure" },
+    { id: 65, question: "Where are project images kept?", options: ["/images", "/media", "/assets", "/graphics"], answer: 2, category: "Structure" },
+    { id: 66, question: "Which folder contains setup guides?", options: ["/docs/setup", "/guide", "/tutorial", "/help"], answer: 0, category: "Structure" },
+    { id: 67, question: "What was introduced in version 0.1?", options: ["Desktop GUI", "Wallet management", "Account monitoring", "Token minting"], answer: 2, category: "Versions" },
+    { id: 68, question: "What feature was added in version 0.2?", options: ["SDK & CLI", "NFT tools", "Desktop GUI", "Token swaps"], answer: 0, category: "Versions" },
+    { id: 69, question: "Which update introduced Anchor and validator?", options: ["v0.1", "v0.2", "v0.3", "v1.0"], answer: 2, category: "Versions" },
+    { id: 70, question: "What is planned for version 0.4?", options: ["Token tools", "Desktop GUI", "Mobile app", "Game engine"], answer: 1, category: "Versions" },
+    { id: 71, question: "What will version 0.5 focus on?", options: ["NFT and token tools", "Validator rewrite", "Cloud only mode", "Rust removal"], answer: 0, category: "Versions" },
+    { id: 72, question: "What is the long-term goal for version 1.0?", options: ["Marketing", "UI themes", "Production readiness", "Mobile port"], answer: 2, category: "Versions" },
+    { id: 73, question: "What license does Kawai use?", options: ["GPL", "Apache", "MIT", "BSD"], answer: 2, category: "General" },
+    { id: 74, question: "What emoji best represents the Kawai brand?", options: ["🔥", "🌸", "💀", "🧱"], answer: 1, category: "General" },
+    { id: 75, question: "Who is Kawai mainly for?", options: ["Linux admins", "Mobile developers", "Windows Solana developers", "Game modders"], answer: 2, category: "General" },
+    { id: 76, question: "Which mascot represents the project?", options: ["Sol-chan", "Anchor-kun", "Kawai-chan", "Rusty"], answer: 2, category: "General" },
+    { id: 77, question: "What does Kawai aim to eliminate?", options: ["Rust", "Linux dependency", "GitHub", "Smart contracts"], answer: 1, category: "General" },
+    { id: 78, question: "Which build backend is always available?", options: ["WSL", "Docker", "Cloud", "Native only"], answer: 2, category: "General" },
+    { id: 79, question: "What does 'kawai init' do?", options: ["Starts validator", "Creates new project", "Builds program", "Exports wallet"], answer: 1, category: "General" },
+    { id: 80, question: "What does 'kawai config' manage?", options: ["Network settings", "Wallet balance", "NFT minting", "Account transfer"], answer: 0, category: "General" },
+    { id: 81, question: "Which command changes network?", options: ["kawai network", "kawai set net", "kawai config network", "kawai rpc"], answer: 2, category: "General" },
+    { id: 82, question: "What does 'kawai info' display?", options: ["Network statistics", "Wallet keys", "Token prices", "Docker images"], answer: 0, category: "General" },
+    { id: 83, question: "What is stored in the /packages folder?", options: ["Python libs", "JS SDK (coming soon)", "Logs", "CLI tools"], answer: 1, category: "Structure" },
+    { id: 84, question: "What is in /src?", options: ["Validator", "Desktop app", "Original monitor", "Rust compiler"], answer: 2, category: "Structure" },
+    { id: 85, question: "Which skill is needed for core contribution?", options: ["Java", "Rust & Solana", "PHP", "Lua"], answer: 1, category: "Contributing" },
+    { id: 86, question: "Which skill is needed for desktop app contribution?", options: ["Tauri & React", "Django", "Unity", "Flutter"], answer: 0, category: "Contributing" },
+    { id: 87, question: "What does the MIT license allow?", options: ["Closed-source only", "Free usage and modification", "No redistribution", "Only academic use"], answer: 1, category: "Contributing" },
+    { id: 88, question: "What is the primary design philosophy of Kawai?", options: ["Cloud-first", "Windows-native", "Mobile-first", "Enterprise-only"], answer: 1, category: "Philosophy" },
+    { id: 89, question: "What does 'kawai deploy' do?", options: ["Runs tests", "Sends tokens", "Deploys Solana programs", "Installs tools"], answer: 2, category: "Commands" },
+    { id: 90, question: "Can you specify a keypair during deployment?", options: ["No", "Only sometimes", "Yes", "Only on mainnet"], answer: 2, category: "Commands" },
+    { id: 91, question: "Which environment is fastest in Kawai?", options: ["WSL", "Docker", "Native Windows", "Cloud"], answer: 2, category: "Performance" },
+    { id: 92, question: "What does Kawai avoid using?", options: ["Rust", "Linux", "Git", "JSON"], answer: 1, category: "Philosophy" },
+    { id: 93, question: "What makes Kawai unique compared to other Solana toolkits?", options: ["Mobile support", "Native Windows development", "NFT marketplace", "Token exchange"], answer: 1, category: "Philosophy" },
+    { id: 94, question: "What is the purpose of kawai-wallet?", options: ["Token minting", "Wallet management", "Program testing", "UI rendering"], answer: 1, category: "Structure" },
+    { id: 95, question: "What is the kawai-anchor crate for?", options: ["Desktop UI", "Anchor framework integration", "NFT minting", "Cloud syncing"], answer: 1, category: "Structure" },
+    { id: 96, question: "What does kawai-rpc handle?", options: ["Rendering", "Blockchain communication", "Image storage", "Token burning"], answer: 1, category: "Structure" },
+    { id: 97, question: "Which command shows toolchain status?", options: ["kawai toolchain status", "kawai toolchain list", "kawai toolchain show", "kawai status tools"], answer: 0, category: "Commands" },
+    { id: 98, question: "What is the tone of Kawai branding?", options: ["Corporate", "Dark", "Cute and developer-friendly", "Military"], answer: 2, category: "Branding" },
+    { id: 99, question: "What does Kawai help developers avoid?", options: ["Rust syntax", "Linux setups", "Programming", "Debugging"], answer: 1, category: "Philosophy" },
+    { id: 100, question: "What is Kawai's ultimate mission?", options: ["Replace Solana", "Make Windows Solana development simple and native", "Build games only", "Create NFTs only"], answer: 1, category: "Philosophy" },
+];
+
+type GameState = 'wallet' | 'checking' | 'not-holding' | 'holding' | 'playing' | 'result';
+
 const GamesApp: React.FC = () => {
-    const [currentGame, setCurrentGame] = useState<GameType>('menu');
-    const [wallet, setWallet] = useState<WalletState>({
-        connected: false,
-        address: null,
-        balance: 0,
-        hasEnoughTokens: false,
-        loading: false,
-    });
-    const [showModal, setShowModal] = useState(false);
-    const [modalType, setModalType] = useState<'connect' | 'not-holding' | 'holding'>('connect');
+    const [gameState, setGameState] = useState<GameState>('wallet');
+    const [walletAddress, setWalletAddress] = useState('');
+    const [tokenBalance, setTokenBalance] = useState(0);
+    const [currentQuestion, setCurrentQuestion] = useState(0);
+    const [score, setScore] = useState(0);
+    const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+    const [showResult, setShowResult] = useState(false);
+    const [gameQuestions, setGameQuestions] = useState<Question[]>([]);
+    const [timeLeft, setTimeLeft] = useState(30);
+    const [streak, setStreak] = useState(0);
 
-    const games = [
-        { id: 'snake', name: '🐍 Snake', desc: 'Classic arcade game', color: '#4CAF50' },
-        { id: 'memory', name: '🧠 Memory', desc: 'Card matching game', color: '#FF9800' },
-        { id: 'clicker', name: '🍪 Cookie Clicker', desc: 'Click to earn!', color: '#E91E63' },
-    ];
-
-    const connectWallet = async () => {
-        setWallet(prev => ({ ...prev, loading: true }));
-        
-        try {
-            // Check if Phantom or other Solana wallet is installed
-            const solana = (window as any).solana;
-            
-            if (!solana?.isPhantom) {
-                alert('Please install Phantom wallet to play games!\n\nGet it at: https://phantom.app');
-                setWallet(prev => ({ ...prev, loading: false }));
-                return;
-            }
-
-            const response = await solana.connect();
-            const publicKey = response.publicKey.toString();
-            
-            // Check token balance using RPC
-            const tokenBalance = await checkTokenBalance(publicKey);
-            
-            const hasEnough = tokenBalance >= REQUIRED_AMOUNT;
-            
-            setWallet({
-                connected: true,
-                address: publicKey,
-                balance: tokenBalance,
-                hasEnoughTokens: hasEnough,
-                loading: false,
-            });
-
-            // Show appropriate modal
-            setModalType(hasEnough ? 'holding' : 'not-holding');
-            setShowModal(true);
-            
-        } catch (error) {
-            console.error('Wallet connection error:', error);
-            setWallet(prev => ({ ...prev, loading: false }));
-            alert('Failed to connect wallet. Please try again.');
-        }
+    // Shuffle and pick 10 random questions
+    const startGame = () => {
+        const shuffled = [...QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 10);
+        setGameQuestions(shuffled);
+        setCurrentQuestion(0);
+        setScore(0);
+        setStreak(0);
+        setTimeLeft(30);
+        setGameState('playing');
     };
 
-    const checkTokenBalance = async (walletAddress: string): Promise<number> => {
+    // Timer
+    useEffect(() => {
+        if (gameState !== 'playing') return;
+        if (timeLeft <= 0) {
+            handleTimeout();
+            return;
+        }
+        const timer = setInterval(() => setTimeLeft(t => t - 1), 1000);
+        return () => clearInterval(timer);
+    }, [timeLeft, gameState]);
+
+    const handleTimeout = () => {
+        setStreak(0);
+        nextQuestion();
+    };
+
+    const checkWallet = async () => {
+        if (!walletAddress || walletAddress.length < 32) {
+            alert('Please enter a valid Solana wallet address');
+            return;
+        }
+
+        setGameState('checking');
+
         try {
-            // Use Helius or public RPC to check token balance
             const response = await fetch('https://api.mainnet-beta.solana.com', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -93,459 +183,242 @@ const GamesApp: React.FC = () => {
             const data = await response.json();
             
             if (data.result?.value?.length > 0) {
-                const balance = data.result.value[0].account.data.parsed.info.tokenAmount.uiAmount;
-                return balance || 0;
+                const balance = data.result.value[0].account.data.parsed.info.tokenAmount.uiAmount || 0;
+                setTokenBalance(balance);
+                
+                if (balance >= REQUIRED_AMOUNT) {
+                    setGameState('holding');
+                } else {
+                    setGameState('not-holding');
+                }
+            } else {
+                setTokenBalance(0);
+                setGameState('not-holding');
             }
-            return 0;
         } catch (error) {
-            console.error('Error checking token balance:', error);
-            return 0;
+            console.error('Error checking wallet:', error);
+            setTokenBalance(0);
+            setGameState('not-holding');
         }
     };
 
-    const handlePlayGame = (gameId: string) => {
-        if (!wallet.connected) {
-            setModalType('connect');
-            setShowModal(true);
-            return;
-        }
-
-        if (!wallet.hasEnoughTokens) {
-            setModalType('not-holding');
-            setShowModal(true);
-            return;
-        }
-
-        setCurrentGame(gameId as GameType);
-    };
-
-    const disconnectWallet = async () => {
-        try {
-            const solana = (window as any).solana;
-            if (solana) {
-                await solana.disconnect();
-            }
-        } catch (e) {
-            console.error('Disconnect error:', e);
-        }
+    const handleAnswer = (answerIndex: number) => {
+        if (selectedAnswer !== null) return;
         
-        setWallet({
-            connected: false,
-            address: null,
-            balance: 0,
-            hasEnoughTokens: false,
-            loading: false,
-        });
+        setSelectedAnswer(answerIndex);
+        const correct = answerIndex === gameQuestions[currentQuestion].answer;
+        
+        if (correct) {
+            const timeBonus = Math.floor(timeLeft / 3);
+            const streakBonus = streak * 5;
+            setScore(s => s + 10 + timeBonus + streakBonus);
+            setStreak(s => s + 1);
+        } else {
+            setStreak(0);
+        }
+
+        setTimeout(() => nextQuestion(), 1500);
     };
 
-    const formatAddress = (address: string) => {
-        return `${address.slice(0, 4)}...${address.slice(-4)}`;
+    const nextQuestion = () => {
+        if (currentQuestion + 1 >= gameQuestions.length) {
+            setGameState('result');
+        } else {
+            setCurrentQuestion(c => c + 1);
+            setSelectedAnswer(null);
+            setTimeLeft(30);
+        }
+    };
+
+    const formatAddress = (addr: string) => {
+        if (addr.length < 8) return addr;
+        return `${addr.slice(0, 4)}...${addr.slice(-4)}`;
     };
 
     return (
         <div className="games-app">
-            {/* Wallet Status Bar */}
-            <div className="wallet-bar">
-                {wallet.connected ? (
-                    <div className="wallet-info">
-                        <span className="wallet-address">🔗 {formatAddress(wallet.address!)}</span>
-                        <span className="token-balance">
-                            {wallet.hasEnoughTokens ? '✅' : '❌'} {wallet.balance.toLocaleString()} $KAWAI
-                        </span>
-                        <button className="disconnect-btn" onClick={disconnectWallet}>Disconnect</button>
+            {/* Wallet Entry Screen */}
+            {gameState === 'wallet' && (
+                <div className="wallet-screen">
+                    <div className="wallet-header">
+                        <h1>🌸 Kawai Quiz Challenge</h1>
+                        <p>Test your knowledge about Kawai and win rewards!</p>
                     </div>
-                ) : (
-                    <button className="connect-wallet-btn" onClick={connectWallet} disabled={wallet.loading}>
-                        {wallet.loading ? '⏳ Connecting...' : '🔗 Connect Wallet'}
-                    </button>
-                )}
-            </div>
-
-            {currentGame === 'menu' ? (
-                <div className="games-menu">
-                    <div className="menu-header">
-                        <h1>🎮 Game Center</h1>
-                        <p>Connect wallet & hold 1M $KAWAI to play!</p>
-                    </div>
-
-                    {/* Rules Section */}
-                    <div className="rules-section">
+                    
+                    <div className="rules-box">
                         <h3>📜 Rules</h3>
                         <ul>
-                            <li>🔗 Connect your Solana wallet</li>
-                            <li>💰 Hold at least 1,000,000 $KAWAI tokens</li>
-                            <li>🎮 Play games and compete for prizes</li>
-                            <li>🏆 <strong>Winners get % of all CRS!</strong></li>
+                            <li>🎯 Answer 10 random questions about Kawai</li>
+                            <li>⏱️ 30 seconds per question</li>
+                            <li>🔥 Build streaks for bonus points</li>
+                            <li>🏆 Winners get % of all CRS!</li>
                         </ul>
+                    </div>
+
+                    <div className="wallet-input-section">
+                        <h3>💰 Enter Reward Wallet</h3>
+                        <p className="requirement">Must hold at least <strong>1,000,000 $KAWAI</strong> to play</p>
+                        
+                        <input
+                            type="text"
+                            placeholder="Paste your Solana wallet address..."
+                            value={walletAddress}
+                            onChange={(e) => setWalletAddress(e.target.value)}
+                            className="wallet-input"
+                        />
+                        
+                        <button className="verify-btn" onClick={checkWallet}>
+                            Verify Wallet & Play 🚀
+                        </button>
+
                         <div className="token-info">
                             <span>Token: </span>
                             <code>{TOKEN_MINT.slice(0, 8)}...{TOKEN_MINT.slice(-4)}</code>
-                            <a 
-                                href={`https://pump.fun/coin/${TOKEN_MINT}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="buy-link"
-                            >
-                                Buy on pump.fun →
-                            </a>
                         </div>
                     </div>
-
-                    <div className="games-grid">
-                        {games.map((game) => (
-                            <div 
-                                key={game.id}
-                                className={`game-card ${!wallet.hasEnoughTokens ? 'locked' : ''}`}
-                                onClick={() => handlePlayGame(game.id)}
-                                style={{ borderColor: game.color }}
-                            >
-                                {!wallet.hasEnoughTokens && <div className="lock-overlay">🔒</div>}
-                                <div className="game-icon">{game.name.split(' ')[0]}</div>
-                                <h3>{game.name.split(' ').slice(1).join(' ')}</h3>
-                                <p>{game.desc}</p>
-                                <button 
-                                    style={{ background: game.color }}
-                                    disabled={!wallet.hasEnoughTokens}
-                                >
-                                    {wallet.hasEnoughTokens ? 'Play' : 'Locked'}
-                                </button>
-                            </div>
-                        ))}
-                    </div>
                 </div>
-            ) : (
-                <div className="game-container">
-                    <div className="game-header">
-                        <button className="back-btn" onClick={() => setCurrentGame('menu')}>
-                            ← Back to Menu
+            )}
+
+            {/* Checking Wallet */}
+            {gameState === 'checking' && (
+                <div className="checking-screen">
+                    <div className="spinner"></div>
+                    <h2>Checking wallet...</h2>
+                    <p>Verifying $KAWAI holdings</p>
+                </div>
+            )}
+
+            {/* Not Holding Enough */}
+            {gameState === 'not-holding' && (
+                <div className="result-screen not-holding">
+                    <img src="/icons/not-holding.png" alt="Not Holding" className="result-image" />
+                    <h2>❌ Insufficient $KAWAI!</h2>
+                    <p className="balance-text">Your balance: <strong>{tokenBalance.toLocaleString()} $KAWAI</strong></p>
+                    <p>You need at least <strong>1,000,000 $KAWAI</strong> to play!</p>
+                    
+                    <div className="action-buttons">
+                        <a 
+                            href={`https://pump.fun/coin/${TOKEN_MINT}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="buy-btn"
+                        >
+                            🛒 Buy $KAWAI on pump.fun
+                        </a>
+                        <button className="back-btn" onClick={() => setGameState('wallet')}>
+                            ← Try Another Wallet
                         </button>
                     </div>
-                    {currentGame === 'snake' && <SnakeGame />}
-                    {currentGame === 'memory' && <MemoryGame />}
-                    {currentGame === 'clicker' && <ClickerGame />}
                 </div>
             )}
 
-            {/* Modal */}
-            {showModal && (
-                <div className="modal-overlay" onClick={() => setShowModal(false)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        {modalType === 'connect' && (
-                            <>
-                                <h2>🔗 Connect Wallet</h2>
-                                <p>You need to connect your Solana wallet to play games!</p>
-                                <button className="modal-btn primary" onClick={() => { setShowModal(false); connectWallet(); }}>
-                                    Connect Phantom
-                                </button>
-                                <a 
-                                    href="https://phantom.app" 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="get-wallet-link"
-                                >
-                                    Don't have a wallet? Get Phantom →
-                                </a>
-                            </>
-                        )}
-                        
-                        {modalType === 'not-holding' && (
-                            <>
-                                <img src="/icons/not-holding.png" alt="Not Holding" className="modal-image" />
-                                <h2>❌ Insufficient Tokens</h2>
-                                <p>You need to hold at least <strong>1,000,000 $KAWAI</strong> tokens to play!</p>
-                                <p className="current-balance">Your balance: {wallet.balance.toLocaleString()} $KAWAI</p>
-                                <div className="buy-info">
-                                    <p>Buy $KAWAI on pump.fun:</p>
-                                    <a 
-                                        href={`https://pump.fun/coin/${TOKEN_MINT}`} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="modal-btn buy"
-                                    >
-                                        🛒 Buy $KAWAI
-                                    </a>
-                                </div>
-                            </>
-                        )}
-                        
-                        {modalType === 'holding' && (
-                            <>
-                                <img src="/icons/holding.png" alt="Holding" className="modal-image" />
-                                <h2>✅ Welcome, Holder!</h2>
-                                <p>You're holding <strong>{wallet.balance.toLocaleString()} $KAWAI</strong></p>
-                                <p className="access-granted">🎮 All games are now unlocked!</p>
-                                <button className="modal-btn success" onClick={() => setShowModal(false)}>
-                                    Let's Play! 🚀
-                                </button>
-                            </>
-                        )}
-                        
-                        <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
-                    </div>
+            {/* Holding - Ready to Play */}
+            {gameState === 'holding' && (
+                <div className="result-screen holding">
+                    <img src="/icons/holding.png" alt="Holding" className="result-image" />
+                    <h2>✅ Welcome, Kawai Holder!</h2>
+                    <p className="balance-text">Your balance: <strong>{tokenBalance.toLocaleString()} $KAWAI</strong></p>
+                    <p className="wallet-text">Rewards wallet: <strong>{formatAddress(walletAddress)}</strong></p>
+                    <p className="ready-text">You're ready to play! 🎮</p>
+                    
+                    <button className="play-btn" onClick={startGame}>
+                        Start Quiz! 🌸
+                    </button>
                 </div>
             )}
-        </div>
-    );
-};
 
-// Snake Game
-const SnakeGame: React.FC = () => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [score, setScore] = useState(0);
-    const [gameOver, setGameOver] = useState(false);
-    const [gameStarted, setGameStarted] = useState(false);
-
-    const gridSize = 20;
-    const canvasSize = 400;
-
-    useEffect(() => {
-        if (!gameStarted || gameOver) return;
-
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        let snake = [{ x: 10, y: 10 }];
-        let direction = { x: 1, y: 0 };
-        let food = { x: 15, y: 15 };
-        let currentScore = 0;
-
-        const generateFood = () => {
-            food = {
-                x: Math.floor(Math.random() * (canvasSize / gridSize)),
-                y: Math.floor(Math.random() * (canvasSize / gridSize)),
-            };
-        };
-
-        const handleKeydown = (e: KeyboardEvent) => {
-            switch (e.key) {
-                case 'ArrowUp': if (direction.y !== 1) direction = { x: 0, y: -1 }; break;
-                case 'ArrowDown': if (direction.y !== -1) direction = { x: 0, y: 1 }; break;
-                case 'ArrowLeft': if (direction.x !== 1) direction = { x: -1, y: 0 }; break;
-                case 'ArrowRight': if (direction.x !== -1) direction = { x: 1, y: 0 }; break;
-            }
-        };
-
-        window.addEventListener('keydown', handleKeydown);
-
-        const gameLoop = setInterval(() => {
-            const head = {
-                x: snake[0].x + direction.x,
-                y: snake[0].y + direction.y,
-            };
-
-            if (head.x < 0 || head.x >= canvasSize / gridSize ||
-                head.y < 0 || head.y >= canvasSize / gridSize) {
-                setGameOver(true);
-                return;
-            }
-
-            if (snake.some(seg => seg.x === head.x && seg.y === head.y)) {
-                setGameOver(true);
-                return;
-            }
-
-            snake.unshift(head);
-
-            if (head.x === food.x && head.y === food.y) {
-                currentScore += 10;
-                setScore(currentScore);
-                generateFood();
-            } else {
-                snake.pop();
-            }
-
-            ctx.fillStyle = '#1a1a2e';
-            ctx.fillRect(0, 0, canvasSize, canvasSize);
-
-            ctx.fillStyle = '#ff6b6b';
-            ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 2, gridSize - 2);
-
-            snake.forEach((seg, i) => {
-                ctx.fillStyle = i === 0 ? '#4CAF50' : '#81C784';
-                ctx.fillRect(seg.x * gridSize, seg.y * gridSize, gridSize - 2, gridSize - 2);
-            });
-        }, 100);
-
-        return () => {
-            clearInterval(gameLoop);
-            window.removeEventListener('keydown', handleKeydown);
-        };
-    }, [gameStarted, gameOver]);
-
-    const startGame = () => {
-        setScore(0);
-        setGameOver(false);
-        setGameStarted(true);
-    };
-
-    return (
-        <div className="snake-game">
-            <div className="game-info">
-                <span>Score: {score}</span>
-            </div>
-            <div className="canvas-container">
-                <canvas ref={canvasRef} width={canvasSize} height={canvasSize} />
-                {!gameStarted && !gameOver && (
-                    <div className="game-overlay">
-                        <h2>🐍 Snake</h2>
-                        <p>Use arrow keys to move</p>
-                        <button onClick={startGame}>Start Game</button>
-                    </div>
-                )}
-                {gameOver && (
-                    <div className="game-overlay">
-                        <h2>Game Over!</h2>
-                        <p>Final Score: {score}</p>
-                        <button onClick={startGame}>Play Again</button>
-                    </div>
-                )}
-            </div>
-            <div className="mobile-controls">
-                <button onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }))}>↑</button>
-                <div className="controls-row">
-                    <button onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }))}>←</button>
-                    <button onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }))}>↓</button>
-                    <button onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }))}>→</button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// Memory Game
-const MemoryGame: React.FC = () => {
-    const emojis = ['🌸', '🎮', '💖', '⭐', '🌙', '🎵', '🦋', '🍰'];
-    const [cards, setCards] = useState<string[]>([]);
-    const [flipped, setFlipped] = useState<number[]>([]);
-    const [matched, setMatched] = useState<number[]>([]);
-    const [moves, setMoves] = useState(0);
-
-    const initGame = useCallback(() => {
-        const shuffled = [...emojis, ...emojis].sort(() => Math.random() - 0.5);
-        setCards(shuffled);
-        setFlipped([]);
-        setMatched([]);
-        setMoves(0);
-    }, []);
-
-    useEffect(() => {
-        initGame();
-    }, [initGame]);
-
-    useEffect(() => {
-        if (flipped.length === 2) {
-            const [first, second] = flipped;
-            if (cards[first] === cards[second]) {
-                setMatched(prev => [...prev, first, second]);
-            }
-            setTimeout(() => setFlipped([]), 800);
-        }
-    }, [flipped, cards]);
-
-    const handleCardClick = (index: number) => {
-        if (flipped.length === 2 || flipped.includes(index) || matched.includes(index)) return;
-        setFlipped(prev => [...prev, index]);
-        if (flipped.length === 1) setMoves(prev => prev + 1);
-    };
-
-    const isWon = matched.length === cards.length;
-
-    return (
-        <div className="memory-game">
-            <div className="game-info">
-                <span>Moves: {moves}</span>
-                <span>Matched: {matched.length / 2}/{emojis.length}</span>
-            </div>
-            <div className="memory-grid">
-                {cards.map((emoji, index) => (
-                    <div
-                        key={index}
-                        className={`memory-card ${flipped.includes(index) || matched.includes(index) ? 'flipped' : ''}`}
-                        onClick={() => handleCardClick(index)}
-                    >
-                        <div className="card-inner">
-                            <div className="card-front">?</div>
-                            <div className="card-back">{emoji}</div>
+            {/* Playing the Quiz */}
+            {gameState === 'playing' && gameQuestions.length > 0 && (
+                <div className="quiz-screen">
+                    <div className="quiz-header">
+                        <div className="progress-info">
+                            <span className="question-num">Question {currentQuestion + 1}/{gameQuestions.length}</span>
+                            <span className="category-badge">{gameQuestions[currentQuestion].category}</span>
+                        </div>
+                        <div className="stats">
+                            <span className="score">🏆 {score}</span>
+                            {streak > 1 && <span className="streak">🔥 {streak}x streak!</span>}
+                            <span className={`timer ${timeLeft <= 10 ? 'danger' : ''}`}>⏱️ {timeLeft}s</span>
                         </div>
                     </div>
-                ))}
-            </div>
-            {isWon && (
-                <div className="win-message">
-                    <h2>🎉 You Win!</h2>
-                    <p>Completed in {moves} moves</p>
-                    <button onClick={initGame}>Play Again</button>
+
+                    <div className="progress-bar">
+                        <div className="progress-fill" style={{ width: `${((currentQuestion + 1) / gameQuestions.length) * 100}%` }}></div>
+                    </div>
+
+                    <div className="question-card">
+                        <h2>{gameQuestions[currentQuestion].question}</h2>
+                    </div>
+
+                    <div className="options-grid">
+                        {gameQuestions[currentQuestion].options.map((option, index) => {
+                            let className = 'option-btn';
+                            if (selectedAnswer !== null) {
+                                if (index === gameQuestions[currentQuestion].answer) {
+                                    className += ' correct';
+                                } else if (index === selectedAnswer) {
+                                    className += ' wrong';
+                                }
+                            }
+                            return (
+                                <button
+                                    key={index}
+                                    className={className}
+                                    onClick={() => handleAnswer(index)}
+                                    disabled={selectedAnswer !== null}
+                                >
+                                    <span className="option-letter">{String.fromCharCode(65 + index)}</span>
+                                    <span className="option-text">{option}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
             )}
-        </div>
-    );
-};
 
-// Clicker Game
-const ClickerGame: React.FC = () => {
-    const [cookies, setCookies] = useState(0);
-    const [cps, setCps] = useState(0);
-    const [upgrades, setUpgrades] = useState([
-        { id: 1, name: '🖱️ Auto Clicker', cost: 10, cps: 1, owned: 0 },
-        { id: 2, name: '👵 Grandma', cost: 100, cps: 5, owned: 0 },
-        { id: 3, name: '🏭 Factory', cost: 500, cps: 20, owned: 0 },
-        { id: 4, name: '🚀 Rocket', cost: 2000, cps: 100, owned: 0 },
-    ]);
+            {/* Final Result */}
+            {gameState === 'result' && (
+                <div className="final-result">
+                    <div className="result-content">
+                        {score >= 80 ? (
+                            <>
+                                <img src="/icons/holding.png" alt="Winner" className="result-image" />
+                                <h1>🏆 Amazing!</h1>
+                                <p className="score-big">{score} points</p>
+                                <p>You're a true Kawai expert! 🌸</p>
+                            </>
+                        ) : score >= 50 ? (
+                            <>
+                                <img src="/icons/milla.png" alt="Good" className="result-image" />
+                                <h1>👏 Good Job!</h1>
+                                <p className="score-big">{score} points</p>
+                                <p>You know your Kawai! Keep learning! 📚</p>
+                            </>
+                        ) : (
+                            <>
+                                <img src="/icons/not-holding.png" alt="Try Again" className="result-image" />
+                                <h1>📖 Keep Learning!</h1>
+                                <p className="score-big">{score} points</p>
+                                <p>Study up and try again! 💪</p>
+                            </>
+                        )}
+                        
+                        <div className="result-details">
+                            <p>Correct answers: {Math.floor(score / 10)}/10</p>
+                            <p>Reward wallet: {formatAddress(walletAddress)}</p>
+                        </div>
 
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setCookies(prev => prev + cps);
-        }, 1000);
-        return () => clearInterval(interval);
-    }, [cps]);
-
-    const handleClick = () => {
-        setCookies(prev => prev + 1);
-    };
-
-    const buyUpgrade = (id: number) => {
-        const upgrade = upgrades.find(u => u.id === id);
-        if (!upgrade || cookies < upgrade.cost) return;
-
-        setCookies(prev => prev - upgrade.cost);
-        setCps(prev => prev + upgrade.cps);
-        setUpgrades(prev => prev.map(u =>
-            u.id === id
-                ? { ...u, owned: u.owned + 1, cost: Math.floor(u.cost * 1.5) }
-                : u
-        ));
-    };
-
-    return (
-        <div className="clicker-game">
-            <div className="clicker-main">
-                <div className="cookie-display">
-                    <h1>{Math.floor(cookies)} 🍪</h1>
-                    <p>{cps} cookies per second</p>
+                        <div className="result-actions">
+                            <button className="play-again-btn" onClick={startGame}>
+                                Play Again 🔄
+                            </button>
+                            <button className="back-btn" onClick={() => setGameState('wallet')}>
+                                Change Wallet
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <button className="big-cookie" onClick={handleClick}>
-                    🍪
-                </button>
-            </div>
-            <div className="clicker-shop">
-                <h3>🛒 Shop</h3>
-                {upgrades.map(upgrade => (
-                    <button
-                        key={upgrade.id}
-                        className={`shop-item ${cookies >= upgrade.cost ? 'available' : 'locked'}`}
-                        onClick={() => buyUpgrade(upgrade.id)}
-                        disabled={cookies < upgrade.cost}
-                    >
-                        <span className="item-icon">{upgrade.name}</span>
-                        <span className="item-info">
-                            <span className="item-cost">{upgrade.cost} 🍪</span>
-                            <span className="item-owned">Owned: {upgrade.owned}</span>
-                        </span>
-                    </button>
-                ))}
-            </div>
+            )}
         </div>
     );
 };
