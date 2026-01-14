@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader, GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRM } from '@pixiv/three-vrm';
@@ -18,9 +18,12 @@ const GUIDE_MESSAGES = [
 
 const GuideCharacter: React.FC = () => {
     const containerRef = useRef<HTMLDivElement>(null);
+    const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+    const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
     const [message, setMessage] = useState(GUIDE_MESSAGES[0]);
     const [showBubble, setShowBubble] = useState(true);
     const [messageIndex, setMessageIndex] = useState(0);
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
     const nextMessage = () => {
         const next = (messageIndex + 1) % GUIDE_MESSAGES.length;
@@ -29,20 +32,35 @@ const GuideCharacter: React.FC = () => {
         setShowBubble(true);
     };
 
+    // Get responsive dimensions
+    const getDimensions = useCallback(() => {
+        const width = window.innerWidth;
+        if (width <= 480) {
+            return { width: 120, height: 170 };
+        } else if (width <= 768) {
+            return { width: 150, height: 210 };
+        } else {
+            return { width: 250, height: 350 };
+        }
+    }, []);
+
     useEffect(() => {
         if (!containerRef.current) return;
         const container = containerRef.current;
+        const dims = getDimensions();
 
         // Setup
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(250, 350);
+        renderer.setSize(dims.width, dims.height);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         container.appendChild(renderer.domElement);
+        rendererRef.current = renderer;
 
-        const camera = new THREE.PerspectiveCamera(25, 250 / 350, 0.1, 20);
+        const camera = new THREE.PerspectiveCamera(25, dims.width / dims.height, 0.1, 20);
         camera.position.set(0, 1.3, 3);
         camera.lookAt(0, 1.2, 0);
+        cameraRef.current = camera;
 
         const scene = new THREE.Scene();
 
@@ -63,11 +81,34 @@ const GuideCharacter: React.FC = () => {
         const bones: { [key: string]: THREE.Object3D | null } = {};
         const mouse = { x: 0, y: 0, sx: 0, sy: 0 };
 
+        // Mouse/Touch handling
         const onMouseMove = (e: MouseEvent) => {
             mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
         };
+
+        const onTouchMove = (e: TouchEvent) => {
+            if (e.touches.length > 0) {
+                mouse.x = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.touches[0].clientY / window.innerHeight) * 2 + 1;
+            }
+        };
+
         window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('touchmove', onTouchMove, { passive: true });
+
+        // Handle resize
+        const handleResize = () => {
+            const newDims = getDimensions();
+            setIsMobile(window.innerWidth <= 768);
+            
+            if (rendererRef.current && cameraRef.current) {
+                rendererRef.current.setSize(newDims.width, newDims.height);
+                cameraRef.current.aspect = newDims.width / newDims.height;
+                cameraRef.current.updateProjectionMatrix();
+            }
+        };
+        window.addEventListener('resize', handleResize);
 
         // LookAt target
         const lookTarget = new THREE.Object3D();
@@ -95,7 +136,6 @@ const GuideCharacter: React.FC = () => {
 
             // Find ALL bones by traversing the scene
             vrm.scene.traverse((obj) => {
-                // Store all objects that look like bones
                 if (obj instanceof THREE.Bone || obj.type === 'Bone') {
                     bones[obj.name] = obj;
                 }
@@ -195,12 +235,14 @@ const GuideCharacter: React.FC = () => {
         return () => {
             cancelAnimationFrame(frameId);
             window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('touchmove', onTouchMove);
+            window.removeEventListener('resize', handleResize);
             renderer.dispose();
             if (container.contains(renderer.domElement)) {
                 container.removeChild(renderer.domElement);
             }
         };
-    }, []);
+    }, [getDimensions]);
 
     // Auto-hide bubble
     useEffect(() => {
@@ -219,7 +261,7 @@ const GuideCharacter: React.FC = () => {
     }, [showBubble, messageIndex]);
 
     return (
-        <div className="guide-character" onClick={nextMessage}>
+        <div className={`guide-character ${isMobile ? 'mobile' : ''}`} onClick={nextMessage}>
             {showBubble && (
                 <div className="speech-bubble">
                     <span>{message}</span>
