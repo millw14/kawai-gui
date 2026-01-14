@@ -5,7 +5,6 @@ import VSCodeApp from './apps/VSCodeApp';
 import BrowserApp from './apps/BrowserApp';
 import GitHubApp from './apps/GitHubApp';
 import GamesApp from './apps/GamesApp';
-import ThreeScene from './ThreeScene';
 import GuideCharacter from './GuideCharacter';
 import './Desktop.css';
 

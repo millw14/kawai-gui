@@ -21,7 +21,7 @@ interface WindowProps {
 }
 
 const Window: React.FC<WindowProps> = ({
-    id,
+    id: _id,
     title,
     icon,
     children,
@@ -36,11 +36,11 @@ const Window: React.FC<WindowProps> = ({
     onMaximize,
     onFocus,
     onPositionChange,
-    onSizeChange,
+    onSizeChange: _onSizeChange,
 }) => {
     const windowRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
-    const [isResizing, setIsResizing] = useState(false);
+    const [_isResizing, setIsResizing] = useState(false);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
     const handleMouseDown = (e: React.MouseEvent) => {

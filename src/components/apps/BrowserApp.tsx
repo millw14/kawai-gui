@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import './BrowserApp.css';
 
 const BrowserApp: React.FC = () => {
-    const [url, setUrl] = useState('https://milla.dev');
     const [currentPage, setCurrentPage] = useState('home');
 
     const bookmarks = [
@@ -340,7 +339,7 @@ kawai deploy --network devnet`}</pre>
                     <input 
                         type="text" 
                         value={`https://milla.dev/${currentPage === 'home' ? '' : currentPage}`}
-                        onChange={(e) => setUrl(e.target.value)}
+                        readOnly
                     />
                     <span className="url-icon">⭐</span>
                 </div>

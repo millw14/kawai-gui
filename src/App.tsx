@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import LoadingScreen from './components/LoadingScreen';
 import Desktop from './components/Desktop';
 import './App.css';

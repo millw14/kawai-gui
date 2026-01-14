@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { GLTFLoader, GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRM } from '@pixiv/three-vrm';
 import './GuideCharacter.css';
 
@@ -60,7 +60,7 @@ const GuideCharacter: React.FC = () => {
 
         // State
         let vrm: VRM | null = null;
-        let bones: { [key: string]: THREE.Object3D | null } = {};
+        const bones: { [key: string]: THREE.Object3D | null } = {};
         const mouse = { x: 0, y: 0, sx: 0, sy: 0 };
 
         const onMouseMove = (e: MouseEvent) => {
@@ -76,9 +76,9 @@ const GuideCharacter: React.FC = () => {
 
         // Load VRM
         const loader = new GLTFLoader();
-        loader.register((parser) => new VRMLoaderPlugin(parser));
+        loader.register((parser: unknown) => new VRMLoaderPlugin(parser as ConstructorParameters<typeof VRMLoaderPlugin>[0]));
 
-        loader.load('/milla.vrm', (gltf) => {
+        loader.load('/milla.vrm', (gltf: GLTF) => {
             vrm = gltf.userData.vrm as VRM;
             if (!vrm) return;
 
@@ -98,18 +98,16 @@ const GuideCharacter: React.FC = () => {
                 // Store all objects that look like bones
                 if (obj instanceof THREE.Bone || obj.type === 'Bone') {
                     bones[obj.name] = obj;
-                    console.log('Bone:', obj.name);
                 }
             });
             
-            // Also log humanoid bone mapping if available
+            // Also get humanoid bone mapping if available
             if (vrm.humanoid) {
-                console.log('=== VRM Humanoid Bones ===');
                 const boneList = ['leftUpperArm', 'rightUpperArm', 'leftLowerArm', 'rightLowerArm', 'leftShoulder', 'rightShoulder'];
+                const currentVrm = vrm;
                 boneList.forEach(boneName => {
-                    const raw = vrm.humanoid?.getRawBoneNode(boneName as any);
-                    const norm = vrm.humanoid?.getNormalizedBoneNode(boneName as any);
-                    console.log(boneName, '- raw:', raw?.name, 'norm:', norm?.name);
+                    const raw = currentVrm.humanoid?.getRawBoneNode(boneName as Parameters<typeof currentVrm.humanoid.getRawBoneNode>[0]);
+                    const norm = currentVrm.humanoid?.getNormalizedBoneNode(boneName as Parameters<typeof currentVrm.humanoid.getNormalizedBoneNode>[0]);
                     if (raw) bones['raw_' + boneName] = raw;
                     if (norm) bones['norm_' + boneName] = norm;
                 });
@@ -149,14 +147,12 @@ const GuideCharacter: React.FC = () => {
                 const rightArm = bones['J_Bip_R_UpperArm'];
                 const leftForearm = bones['J_Bip_L_LowerArm'];
                 const rightForearm = bones['J_Bip_R_LowerArm'];
-                const leftShoulder = bones['J_Bip_L_Shoulder'];
-                const rightShoulder = bones['J_Bip_R_Shoulder'];
                 const head = bones['J_Bip_C_Head'];
                 const neck = bones['J_Bip_C_Neck'];
                 const chest = bones['J_Bip_C_Chest'];
                 const spine = bones['J_Bip_C_Spine'];
 
-                // Arms down - flip the rotation direction
+                // Arms down
                 if (leftArm) {
                     leftArm.rotation.z = -1.0 + Math.sin(t * 0.5) * 0.02;
                 }
