@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import { VRMLoaderPlugin, VRMHumanBoneName } from '@pixiv/three-vrm';
+import { VRMLoaderPlugin, VRM } from '@pixiv/three-vrm';
 import './GuideCharacter.css';
 
 const GUIDE_MESSAGES = [
@@ -21,265 +21,192 @@ const GuideCharacter: React.FC = () => {
     const [message, setMessage] = useState(GUIDE_MESSAGES[0]);
     const [showBubble, setShowBubble] = useState(true);
     const [messageIndex, setMessageIndex] = useState(0);
-    const [isWaving, setIsWaving] = useState(false);
 
     const nextMessage = () => {
         const next = (messageIndex + 1) % GUIDE_MESSAGES.length;
         setMessageIndex(next);
         setMessage(GUIDE_MESSAGES[next]);
         setShowBubble(true);
-        setIsWaving(true);
-        setTimeout(() => setIsWaving(false), 1000);
     };
 
     useEffect(() => {
         if (!containerRef.current) return;
+        const container = containerRef.current;
 
-        // Renderer
+        // Setup
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(250, 350);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setClearColor(0x000000, 0);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.outputColorSpace = THREE.SRGBColorSpace;
-        containerRef.current.appendChild(renderer.domElement);
+        container.appendChild(renderer.domElement);
 
-        // Camera - positioned for upper body view
-        const camera = new THREE.PerspectiveCamera(25.0, 250 / 350, 0.1, 20.0);
+        const camera = new THREE.PerspectiveCamera(25, 250 / 350, 0.1, 20);
         camera.position.set(0, 1.3, 3);
+        camera.lookAt(0, 1.2, 0);
 
-        // Scene
         const scene = new THREE.Scene();
 
         // Lights
-        const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
-        mainLight.position.set(1.0, 1.5, 2.0);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1);
+        mainLight.position.set(1, 1.5, 2);
         scene.add(mainLight);
-
-        const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
-        fillLight.position.set(-1.0, 0.5, 1.0);
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+        fillLight.position.set(-1, 0.5, 1);
         scene.add(fillLight);
+        const pinkLight = new THREE.DirectionalLight(0xff8fa3, 0.3);
+        pinkLight.position.set(-1, 1, -1);
+        scene.add(pinkLight);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-        scene.add(ambientLight);
+        // State
+        let vrm: VRM | null = null;
+        let bones: { [key: string]: THREE.Object3D | null } = {};
+        const mouse = { x: 0, y: 0, sx: 0, sy: 0 };
 
-        // Pink rim light for kawaii effect
-        const rimLight = new THREE.DirectionalLight(0xff8fa3, 0.4);
-        rimLight.position.set(-1, 1, -1);
-        scene.add(rimLight);
-
-        // VRM Loader
-        let currentVrm: any = null;
-        let waveAnimation = false;
-        const loader = new GLTFLoader();
-        loader.register((parser) => new VRMLoaderPlugin(parser));
-
-        // Mouse position
-        const mouse = { x: 0, y: 0 };
-        const targetLookAt = { x: 0, y: 0 };
-        
-        const onMouseMove = (event: MouseEvent) => {
-            // Normalize mouse position relative to window
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        const onMouseMove = (e: MouseEvent) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
         };
         window.addEventListener('mousemove', onMouseMove);
 
+        // LookAt target
+        const lookTarget = new THREE.Object3D();
+        lookTarget.position.set(0, 1.4, 3);
+        scene.add(lookTarget);
+
         // Load VRM
-        loader.load(
-            '/milla.vrm',
-            (gltf) => {
-                const vrm = gltf.userData.vrm;
-                if (!vrm) {
-                    console.error('VRM not found in GLTF');
-                    return;
-                }
+        const loader = new GLTFLoader();
+        loader.register((parser) => new VRMLoaderPlugin(parser));
 
-                // Position the model
-                vrm.scene.position.set(0, -0.3, 0);
-                vrm.scene.rotation.y = 0;
-                scene.add(vrm.scene);
-                currentVrm = vrm;
+        loader.load('/milla.vrm', (gltf) => {
+            vrm = gltf.userData.vrm as VRM;
+            if (!vrm) return;
 
-                console.log('VRM loaded successfully!', vrm);
+            vrm.scene.position.set(0, -0.3, 0);
+            scene.add(vrm.scene);
 
-                // Set initial happy expression
-                if (vrm.expressionManager) {
-                    vrm.expressionManager.setValue('happy', 0.3);
-                }
-
-                // Apply initial idle pose (not T-pose)
-                applyIdlePose(vrm);
-
-                // Auto-blink
-                if (vrm.expressionManager) {
-                    setInterval(() => {
-                        vrm.expressionManager.setValue('blink', 1.0);
-                        setTimeout(() => vrm.expressionManager.setValue('blink', 0.0), 120);
-                    }, 3000 + Math.random() * 2000);
-                }
-            },
-            (progress) => {
-                console.log('Loading VRM...', (progress.loaded / progress.total * 100).toFixed(1) + '%');
-            },
-            (error) => {
-                console.error('VRM load error:', error);
+            // Setup lookAt for eyes
+            if (vrm.lookAt) {
+                vrm.lookAt.target = lookTarget;
             }
-        );
 
-        // Apply a natural idle pose to avoid T-pose
-        const applyIdlePose = (vrm: any) => {
-            if (!vrm.humanoid) return;
+            // Happy expression
+            vrm.expressionManager?.setValue('happy', 0.3);
 
-            const setBoneRotation = (boneName: string, x: number, y: number, z: number) => {
-                const bone = vrm.humanoid.getNormalizedBoneNode(boneName as VRMHumanBoneName);
-                if (bone) {
-                    bone.rotation.set(
-                        THREE.MathUtils.degToRad(x),
-                        THREE.MathUtils.degToRad(y),
-                        THREE.MathUtils.degToRad(z)
-                    );
+            // Find ALL bones by traversing the scene
+            vrm.scene.traverse((obj) => {
+                // Store all objects that look like bones
+                if (obj instanceof THREE.Bone || obj.type === 'Bone') {
+                    bones[obj.name] = obj;
+                    console.log('Bone:', obj.name);
                 }
-            };
+            });
+            
+            // Also log humanoid bone mapping if available
+            if (vrm.humanoid) {
+                console.log('=== VRM Humanoid Bones ===');
+                const boneList = ['leftUpperArm', 'rightUpperArm', 'leftLowerArm', 'rightLowerArm', 'leftShoulder', 'rightShoulder'];
+                boneList.forEach(boneName => {
+                    const raw = vrm.humanoid?.getRawBoneNode(boneName as any);
+                    const norm = vrm.humanoid?.getNormalizedBoneNode(boneName as any);
+                    console.log(boneName, '- raw:', raw?.name, 'norm:', norm?.name);
+                    if (raw) bones['raw_' + boneName] = raw;
+                    if (norm) bones['norm_' + boneName] = norm;
+                });
+            }
 
-            // Arms down and slightly forward (natural standing pose)
-            setBoneRotation('leftUpperArm', 0, 0, 70);
-            setBoneRotation('leftLowerArm', 0, 0, 5);
-            setBoneRotation('rightUpperArm', 0, 0, -70);
-            setBoneRotation('rightLowerArm', 0, 0, -5);
+            // Blink
+            setInterval(() => {
+                vrm?.expressionManager?.setValue('blink', 1);
+                setTimeout(() => vrm?.expressionManager?.setValue('blink', 0), 100);
+            }, 2500 + Math.random() * 2000);
+        });
 
-            // Slight head tilt
-            setBoneRotation('head', 0, 0, 0);
-            setBoneRotation('neck', 5, 0, 0);
-
-            // Shoulders
-            setBoneRotation('leftShoulder', 0, 0, 5);
-            setBoneRotation('rightShoulder', 0, 0, -5);
-
-            // Spine slightly curved
-            setBoneRotation('spine', 2, 0, 0);
-            setBoneRotation('chest', 3, 0, 0);
-        };
-
-        // Store original pose for animation
-        const originalPose: { [key: string]: THREE.Euler } = {};
-
-        // Animation loop
+        // Animation
         const clock = new THREE.Clock();
-        let time = 0;
-        
+        let t = 0;
+        let frameId: number;
+
         const animate = () => {
-            requestAnimationFrame(animate);
-            const deltaTime = clock.getDelta();
-            time += deltaTime;
+            frameId = requestAnimationFrame(animate);
+            const dt = clock.getDelta();
+            t += dt;
 
-            if (currentVrm) {
-                // Smooth mouse tracking
-                targetLookAt.x += (mouse.x - targetLookAt.x) * 0.05;
-                targetLookAt.y += (mouse.y - targetLookAt.y) * 0.05;
+            // Smooth mouse
+            mouse.sx += (mouse.x - mouse.sx) * 0.08;
+            mouse.sy += (mouse.y - mouse.sy) * 0.08;
 
-                if (currentVrm.humanoid) {
-                    // Head follows mouse
-                    const head = currentVrm.humanoid.getNormalizedBoneNode('head');
-                    if (head) {
-                        // Base rotation plus mouse tracking
-                        const baseRotX = THREE.MathUtils.degToRad(5);
-                        head.rotation.x = baseRotX + targetLookAt.y * 0.2;
-                        head.rotation.y = targetLookAt.x * 0.4;
-                        head.rotation.z = targetLookAt.x * 0.05;
-                    }
+            if (vrm) {
+                // Update look target for eyes
+                lookTarget.position.x = mouse.sx * 2;
+                lookTarget.position.y = 1.4 + mouse.sy * 0.5;
 
-                    // Eyes follow mouse more dramatically
-                    const leftEye = currentVrm.humanoid.getNormalizedBoneNode('leftEye');
-                    const rightEye = currentVrm.humanoid.getNormalizedBoneNode('rightEye');
-                    if (leftEye && rightEye) {
-                        leftEye.rotation.y = targetLookAt.x * 0.3;
-                        leftEye.rotation.x = -targetLookAt.y * 0.2;
-                        rightEye.rotation.y = targetLookAt.x * 0.3;
-                        rightEye.rotation.x = -targetLookAt.y * 0.2;
-                    }
+                // Update VRM first
+                vrm.update(dt);
 
-                    // Breathing animation
-                    const chest = currentVrm.humanoid.getNormalizedBoneNode('chest');
-                    if (chest) {
-                        const breathe = Math.sin(time * 1.5) * 0.01;
-                        chest.rotation.x = THREE.MathUtils.degToRad(3) + breathe;
-                    }
+                // Get bones directly by their actual names
+                const leftArm = bones['J_Bip_L_UpperArm'];
+                const rightArm = bones['J_Bip_R_UpperArm'];
+                const leftForearm = bones['J_Bip_L_LowerArm'];
+                const rightForearm = bones['J_Bip_R_LowerArm'];
+                const leftShoulder = bones['J_Bip_L_Shoulder'];
+                const rightShoulder = bones['J_Bip_R_Shoulder'];
+                const head = bones['J_Bip_C_Head'];
+                const neck = bones['J_Bip_C_Neck'];
+                const chest = bones['J_Bip_C_Chest'];
+                const spine = bones['J_Bip_C_Spine'];
 
-                    // Subtle body sway
-                    const spine = currentVrm.humanoid.getNormalizedBoneNode('spine');
-                    if (spine) {
-                        spine.rotation.z = Math.sin(time * 0.5) * 0.02;
-                    }
-
-                    // Waving animation when clicked
-                    if (waveAnimation) {
-                        const rightUpperArm = currentVrm.humanoid.getNormalizedBoneNode('rightUpperArm');
-                        const rightLowerArm = currentVrm.humanoid.getNormalizedBoneNode('rightLowerArm');
-                        if (rightUpperArm && rightLowerArm) {
-                            rightUpperArm.rotation.z = THREE.MathUtils.degToRad(-150);
-                            rightUpperArm.rotation.x = Math.sin(time * 8) * 0.3;
-                            rightLowerArm.rotation.z = THREE.MathUtils.degToRad(-30);
-                        }
-                    } else {
-                        // Return to idle pose for arms
-                        const rightUpperArm = currentVrm.humanoid.getNormalizedBoneNode('rightUpperArm');
-                        const rightLowerArm = currentVrm.humanoid.getNormalizedBoneNode('rightLowerArm');
-                        if (rightUpperArm && rightLowerArm) {
-                            // Smooth return to idle
-                            rightUpperArm.rotation.z = THREE.MathUtils.lerp(
-                                rightUpperArm.rotation.z,
-                                THREE.MathUtils.degToRad(-70),
-                                0.1
-                            );
-                            rightLowerArm.rotation.z = THREE.MathUtils.lerp(
-                                rightLowerArm.rotation.z,
-                                THREE.MathUtils.degToRad(-5),
-                                0.1
-                            );
-                        }
-                    }
-
-                    // Hand gesture - slight finger movements
-                    const leftHand = currentVrm.humanoid.getNormalizedBoneNode('leftHand');
-                    const rightHand = currentVrm.humanoid.getNormalizedBoneNode('rightHand');
-                    if (leftHand) leftHand.rotation.z = Math.sin(time * 0.8) * 0.05;
-                    if (rightHand) rightHand.rotation.z = Math.sin(time * 0.8 + 1) * 0.05;
+                // Arms down - flip the rotation direction
+                if (leftArm) {
+                    leftArm.rotation.z = -1.0 + Math.sin(t * 0.5) * 0.02;
+                }
+                if (rightArm) {
+                    rightArm.rotation.z = 1.0 + Math.sin(t * 0.5 + 1) * 0.02;
+                }
+                if (leftForearm) {
+                    leftForearm.rotation.z = -0.1;
+                }
+                if (rightForearm) {
+                    rightForearm.rotation.z = 0.1;
                 }
 
-                currentVrm.update(deltaTime);
+                // Head - follow cursor
+                if (head) {
+                    head.rotation.y = mouse.sx * 0.4;
+                    head.rotation.x = -mouse.sy * 0.15;
+                }
+
+                // Neck
+                if (neck) {
+                    neck.rotation.y = mouse.sx * 0.15;
+                }
+
+                // Chest - breathing
+                if (chest) {
+                    chest.rotation.x = Math.sin(t * 1.5) * 0.01;
+                }
+
+                // Spine - subtle sway
+                if (spine) {
+                    spine.rotation.z = Math.sin(t * 0.4) * 0.008;
+                }
             }
 
             renderer.render(scene, camera);
         };
         animate();
 
-        // Handle wave trigger from React state
-        const handleWaveEvent = () => {
-            waveAnimation = true;
-            setTimeout(() => { waveAnimation = false; }, 1000);
-        };
-
-        // Store the handler so we can trigger it from React
-        (window as any).__triggerWave = handleWaveEvent;
-
         return () => {
+            cancelAnimationFrame(frameId);
             window.removeEventListener('mousemove', onMouseMove);
-            delete (window as any).__triggerWave;
             renderer.dispose();
-            if (containerRef.current && renderer.domElement.parentNode === containerRef.current) {
-                containerRef.current.removeChild(renderer.domElement);
+            if (container.contains(renderer.domElement)) {
+                container.removeChild(renderer.domElement);
             }
         };
     }, []);
 
-    // Trigger wave animation
-    useEffect(() => {
-        if (isWaving && (window as any).__triggerWave) {
-            (window as any).__triggerWave();
-        }
-    }, [isWaving]);
-
-    // Auto-hide bubble after delay
+    // Auto-hide bubble
     useEffect(() => {
         if (showBubble) {
             const timer = setTimeout(() => setShowBubble(false), 6000);
@@ -287,12 +214,10 @@ const GuideCharacter: React.FC = () => {
         }
     }, [showBubble, message]);
 
-    // Auto cycle messages occasionally
+    // Auto cycle
     useEffect(() => {
         const interval = setInterval(() => {
-            if (!showBubble) {
-                nextMessage();
-            }
+            if (!showBubble) nextMessage();
         }, 15000);
         return () => clearInterval(interval);
     }, [showBubble, messageIndex]);
@@ -307,7 +232,6 @@ const GuideCharacter: React.FC = () => {
             )}
             <div ref={containerRef} className="character-canvas" />
             <div className="character-glow"></div>
-            <div className="click-hint">💬 Click me!</div>
         </div>
     );
 };
