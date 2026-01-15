@@ -3,7 +3,6 @@ import './GamesApp.css';
 
 const TOKEN_MINT = '6ggxkzDCAB3hjiRFUGdiNfcW2viET3REtsbEmVFXpump';
 const REQUIRED_AMOUNT = 1_000_000;
-const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 const TOKEN_2022_PROGRAM_ID = 'TokenzQdBnP7g5dT8f5r4t8Z6eK2e5M5cR9p9zZ9Y7';
 const RPC_ENDPOINTS = [
     'https://api.mainnet-beta.solana.com',
@@ -386,8 +385,9 @@ const GamesApp: React.FC = () => {
             });
 
             if (Number.isFinite(priceUsd)) {
+                const safePrice = priceUsd as number;
                 setPriceHistory(prev => {
-                    const next = [...prev, priceUsd];
+                    const next = [...prev, safePrice];
                     return next.slice(-24);
                 });
             }
