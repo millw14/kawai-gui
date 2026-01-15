@@ -3,277 +3,318 @@ import './WalletAnalyzerApp.css';
 
 const HELIUS_API_KEY = '22039ce1-fa6d-44d0-9995-3ac0b4f039e9';
 const HELIUS_RPC = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+const HELIUS_API = `https://api.helius.xyz/v0`;
 
-interface WalletConnection {
-    address: string;
-    type: 'direct' | 'indirect' | 'common-counterparty';
-    transactions: number;
-    totalAmount: number;
-    firstSeen: string;
-    lastSeen: string;
-    confidence: number;
-}
-
-interface Transaction {
+interface TokenTrade {
     signature: string;
     timestamp: number;
-    type: string;
-    from: string;
-    to: string;
+    tokenMint: string;
+    type: 'buy' | 'sell' | 'transfer';
     amount: number;
-    token?: string;
 }
 
-interface AnalysisResult {
-    sourceWallet: string;
-    connectedWallets: WalletConnection[];
-    transactions: Transaction[];
-    clusters: string[][];
+interface WalletProfile {
+    address: string;
+    trades: TokenTrade[];
+    tokensMinted: string[];
+}
+
+interface SimilarWallet {
+    address: string;
+    similarityScore: number;
+    sharedTokens: string[];
+    sharedTradeCount: number;
+    timingCorrelation: number;
+    details: string;
 }
 
 const WalletAnalyzerApp: React.FC = () => {
-    const [walletAddress, setWalletAddress] = useState('');
+    const [targetWallet, setTargetWallet] = useState('');
     const [tokenMint, setTokenMint] = useState('');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [progress, setProgress] = useState('');
-    const [result, setResult] = useState<AnalysisResult | null>(null);
+    const [progressPercent, setProgressPercent] = useState(0);
+    const [similarWallets, setSimilarWallets] = useState<SimilarWallet[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [expandedWallet, setExpandedWallet] = useState<string | null>(null);
+    const [targetProfile, setTargetProfile] = useState<WalletProfile | null>(null);
 
     const validateAddress = (addr: string) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr);
+    const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
-    const formatAddress = (addr: string) => `${addr.slice(0, 4)}...${addr.slice(-4)}`;
-
-    const formatDate = (timestamp: number) => {
-        return new Date(timestamp * 1000).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        });
-    };
-
-    const fetchTransactionHistory = async (address: string): Promise<any[]> => {
-        const response = await fetch(HELIUS_RPC, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: 1,
-                method: 'getSignaturesForAddress',
-                params: [address, { limit: 100 }]
-            })
-        });
-        const data = await response.json();
-        return data?.result || [];
-    };
-
-    const fetchTransactionDetails = async (signatures: string[]): Promise<any[]> => {
-        const transactions: any[] = [];
-        
-        // Batch fetch in groups of 10
-        for (let i = 0; i < signatures.length; i += 10) {
-            const batch = signatures.slice(i, i + 10);
-            const promises = batch.map(sig => 
-                fetch(HELIUS_RPC, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        jsonrpc: '2.0',
-                        id: 1,
-                        method: 'getTransaction',
-                        params: [sig, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]
-                    })
-                }).then(r => r.json())
+    // Fetch parsed transaction history using Helius enhanced API
+    const fetchParsedTransactions = async (wallet: string, limit = 100): Promise<any[]> => {
+        try {
+            const response = await fetch(
+                `${HELIUS_API}/addresses/${wallet}/transactions?api-key=${HELIUS_API_KEY}&limit=${limit}`
             );
-            
-            const results = await Promise.all(promises);
-            transactions.push(...results.map(r => r?.result).filter(Boolean));
+            if (!response.ok) return [];
+            return await response.json();
+        } catch {
+            return [];
         }
-        
-        return transactions;
     };
 
-    const extractWalletsFromTransaction = (tx: any, sourceWallet: string, targetToken?: string): Map<string, { count: number; amount: number; timestamps: number[] }> => {
-        const wallets = new Map<string, { count: number; amount: number; timestamps: number[] }>();
-        
-        if (!tx?.meta || !tx?.transaction) return wallets;
-        
-        const timestamp = tx.blockTime || 0;
-        
-        // Check pre/post token balances for token transfers
-        const preBalances = tx.meta.preTokenBalances || [];
-        const postBalances = tx.meta.postTokenBalances || [];
-        
-        const allTokenAccounts = [...preBalances, ...postBalances];
-        
-        for (const balance of allTokenAccounts) {
-            const owner = balance.owner;
-            const mint = balance.mint;
-            
-            // Skip if we have a target token and this isn't it
-            if (targetToken && mint !== targetToken) continue;
-            
-            if (owner && owner !== sourceWallet) {
-                const existing = wallets.get(owner) || { count: 0, amount: 0, timestamps: [] };
-                existing.count++;
-                existing.timestamps.push(timestamp);
-                
-                // Try to get transfer amount
-                const preAmount = preBalances.find((b: any) => b.owner === owner && b.mint === mint)?.uiTokenAmount?.uiAmount || 0;
-                const postAmount = postBalances.find((b: any) => b.owner === owner && b.mint === mint)?.uiTokenAmount?.uiAmount || 0;
-                existing.amount += Math.abs(postAmount - preAmount);
-                
-                wallets.set(owner, existing);
-            }
-        }
-        
-        // Also check account keys for SOL transfers
-        const accountKeys = tx.transaction?.message?.accountKeys || [];
-        for (const key of accountKeys) {
-            const pubkey = typeof key === 'string' ? key : key.pubkey;
-            if (pubkey && pubkey !== sourceWallet && validateAddress(pubkey)) {
-                const existing = wallets.get(pubkey) || { count: 0, amount: 0, timestamps: [] };
-                if (!existing.timestamps.includes(timestamp)) {
-                    existing.count++;
-                    existing.timestamps.push(timestamp);
+    // Extract trading profile from transactions
+    const buildWalletProfile = (wallet: string, transactions: any[]): WalletProfile => {
+        const trades: TokenTrade[] = [];
+        const tokensMinted = new Set<string>();
+
+        for (const tx of transactions) {
+            const timestamp = tx.timestamp || 0;
+            const signature = tx.signature || '';
+
+            // Check token transfers
+            if (tx.tokenTransfers && tx.tokenTransfers.length > 0) {
+                for (const transfer of tx.tokenTransfers) {
+                    const mint = transfer.mint;
+                    if (!mint) continue;
+
+                    tokensMinted.add(mint);
+
+                    const isReceiving = transfer.toUserAccount === wallet;
+                    const isSending = transfer.fromUserAccount === wallet;
+
+                    if (isReceiving || isSending) {
+                        trades.push({
+                            signature,
+                            timestamp,
+                            tokenMint: mint,
+                            type: isReceiving ? 'buy' : 'sell',
+                            amount: transfer.tokenAmount || 0
+                        });
+                    }
                 }
-                wallets.set(pubkey, existing);
+            }
+
+            // Check swap events
+            if (tx.events?.swap) {
+                const swap = tx.events.swap;
+                if (swap.tokenInputs) {
+                    for (const input of swap.tokenInputs) {
+                        tokensMinted.add(input.mint);
+                        trades.push({
+                            signature,
+                            timestamp,
+                            tokenMint: input.mint,
+                            type: 'sell',
+                            amount: input.tokenAmount || 0
+                        });
+                    }
+                }
+                if (swap.tokenOutputs) {
+                    for (const output of swap.tokenOutputs) {
+                        tokensMinted.add(output.mint);
+                        trades.push({
+                            signature,
+                            timestamp,
+                            tokenMint: output.mint,
+                            type: 'buy',
+                            amount: output.tokenAmount || 0
+                        });
+                    }
+                }
             }
         }
-        
-        return wallets;
+
+        return {
+            address: wallet,
+            trades,
+            tokensMinted: Array.from(tokensMinted)
+        };
+    };
+
+    // Calculate similarity between two wallet profiles
+    const calculateSimilarity = (
+        target: WalletProfile,
+        other: WalletProfile
+    ): { score: number; sharedTokens: string[]; sharedTradeCount: number; timingCorrelation: number; details: string } => {
+        // Find shared tokens
+        const targetTokens = new Set(target.tokensMinted);
+        const sharedTokens = other.tokensMinted.filter(t => targetTokens.has(t));
+
+        if (sharedTokens.length === 0) {
+            return { score: 0, sharedTokens: [], sharedTradeCount: 0, timingCorrelation: 0, details: 'No shared tokens' };
+        }
+
+        // Count trades on same tokens
+        let sharedTradeCount = 0;
+        let timingMatches = 0;
+        const details: string[] = [];
+
+        for (const token of sharedTokens) {
+            const targetTrades = target.trades.filter(t => t.tokenMint === token);
+            const otherTrades = other.trades.filter(t => t.tokenMint === token);
+
+            sharedTradeCount += Math.min(targetTrades.length, otherTrades.length);
+
+            // Check timing correlation (trades within 1 hour of each other)
+            for (const tTrade of targetTrades) {
+                for (const oTrade of otherTrades) {
+                    const timeDiff = Math.abs(tTrade.timestamp - oTrade.timestamp);
+                    if (timeDiff < 3600) { // Within 1 hour
+                        timingMatches++;
+                        if (tTrade.type === oTrade.type) {
+                            details.push(`Both ${tTrade.type === 'buy' ? 'bought' : 'sold'} ${formatAddress(token)} within 1hr`);
+                        }
+                    } else if (timeDiff < 86400) { // Within 24 hours
+                        timingMatches += 0.5;
+                    }
+                }
+            }
+        }
+
+        // Calculate overall score (0-100)
+        const tokenScore = Math.min(40, sharedTokens.length * 10); // Max 40 points for shared tokens
+        const tradeScore = Math.min(30, sharedTradeCount * 5); // Max 30 points for trade count
+        const timingScore = Math.min(30, timingMatches * 10); // Max 30 points for timing
+
+        const score = Math.round(tokenScore + tradeScore + timingScore);
+
+        return {
+            score,
+            sharedTokens,
+            sharedTradeCount,
+            timingCorrelation: Math.round(timingMatches),
+            details: details.slice(0, 3).join('; ') || `${sharedTokens.length} shared tokens, ${sharedTradeCount} similar trades`
+        };
+    };
+
+    // Get token holders
+    const getTokenHolders = async (mint: string): Promise<string[]> => {
+        try {
+            // Get largest token accounts
+            const response = await fetch(HELIUS_RPC, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'getTokenLargestAccounts',
+                    params: [mint]
+                })
+            });
+
+            const data = await response.json();
+            const accounts = data?.result?.value || [];
+
+            // Get owner addresses for each token account
+            const owners: string[] = [];
+            for (const account of accounts.slice(0, 20)) {
+                try {
+                    const infoRes = await fetch(HELIUS_RPC, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            jsonrpc: '2.0',
+                            id: 1,
+                            method: 'getAccountInfo',
+                            params: [account.address, { encoding: 'jsonParsed' }]
+                        })
+                    });
+                    const infoData = await infoRes.json();
+                    const owner = infoData?.result?.value?.data?.parsed?.info?.owner;
+                    if (owner && owner !== targetWallet) {
+                        owners.push(owner);
+                    }
+                } catch {
+                    continue;
+                }
+            }
+
+            return owners;
+        } catch {
+            return [];
+        }
     };
 
     const analyzeWallet = async () => {
-        if (!validateAddress(walletAddress)) {
+        if (!validateAddress(targetWallet)) {
             setError('Please enter a valid Solana wallet address');
+            return;
+        }
+
+        if (!tokenMint || !validateAddress(tokenMint)) {
+            setError('Please enter a valid token mint address');
             return;
         }
 
         setIsAnalyzing(true);
         setError(null);
-        setResult(null);
-        setProgress('Fetching transaction history...');
+        setSimilarWallets([]);
+        setTargetProfile(null);
+        setProgressPercent(0);
 
         try {
-            // Step 1: Get transaction signatures for source wallet
-            const signatures = await fetchTransactionHistory(walletAddress);
-            setProgress(`Found ${signatures.length} transactions. Analyzing...`);
-
-            if (signatures.length === 0) {
-                setError('No transactions found for this wallet');
+            // Step 1: Build target wallet profile
+            setProgress('Analyzing target wallet trades...');
+            setProgressPercent(10);
+            
+            const targetTxs = await fetchParsedTransactions(targetWallet, 100);
+            if (targetTxs.length === 0) {
+                setError('No transactions found for target wallet');
                 setIsAnalyzing(false);
                 return;
             }
 
-            // Step 2: Fetch transaction details
-            const sigList = signatures.map((s: any) => s.signature);
-            setProgress(`Fetching details for ${sigList.length} transactions...`);
-            const transactions = await fetchTransactionDetails(sigList.slice(0, 50)); // Limit to 50 for speed
+            const targetProf = buildWalletProfile(targetWallet, targetTxs);
+            setTargetProfile(targetProf);
+            setProgressPercent(20);
 
-            // Step 3: Extract all connected wallets
-            setProgress('Extracting connected wallets...');
-            const connectedWalletsMap = new Map<string, { count: number; amount: number; timestamps: number[] }>();
-            const processedTxs: Transaction[] = [];
+            // Step 2: Get token holders
+            setProgress('Finding token holders...');
+            const holders = await getTokenHolders(tokenMint);
+            setProgressPercent(30);
 
-            for (const tx of transactions) {
-                const wallets = extractWalletsFromTransaction(tx, walletAddress, tokenMint || undefined);
-                
-                for (const [addr, data] of wallets) {
-                    const existing = connectedWalletsMap.get(addr) || { count: 0, amount: 0, timestamps: [] };
-                    existing.count += data.count;
-                    existing.amount += data.amount;
-                    existing.timestamps.push(...data.timestamps);
-                    connectedWalletsMap.set(addr, existing);
-                }
+            if (holders.length === 0) {
+                setError('Could not find token holders');
+                setIsAnalyzing(false);
+                return;
             }
 
-            // Step 4: For top connected wallets, check their transactions for indirect connections
-            setProgress('Analyzing indirect connections...');
-            const topWallets = Array.from(connectedWalletsMap.entries())
-                .sort((a, b) => b[1].count - a[1].count)
-                .slice(0, 10);
+            // Step 3: Analyze each holder's trading patterns
+            setProgress(`Analyzing ${holders.length} holders...`);
+            const results: SimilarWallet[] = [];
 
-            const indirectConnections = new Map<string, { count: number; viaWallets: string[] }>();
+            for (let i = 0; i < holders.length; i++) {
+                const holder = holders[i];
+                setProgress(`Analyzing holder ${i + 1}/${holders.length}: ${formatAddress(holder)}`);
+                setProgressPercent(30 + Math.round((i / holders.length) * 60));
 
-            for (const [connectedAddr] of topWallets.slice(0, 5)) {
                 try {
-                    const theirSigs = await fetchTransactionHistory(connectedAddr);
-                    const theirTxs = await fetchTransactionDetails(theirSigs.slice(0, 20).map((s: any) => s.signature));
-                    
-                    for (const tx of theirTxs) {
-                        const wallets = extractWalletsFromTransaction(tx, connectedAddr, tokenMint || undefined);
-                        for (const [indirectAddr] of wallets) {
-                            if (indirectAddr !== walletAddress && !connectedWalletsMap.has(indirectAddr)) {
-                                const existing = indirectConnections.get(indirectAddr) || { count: 0, viaWallets: [] };
-                                existing.count++;
-                                if (!existing.viaWallets.includes(connectedAddr)) {
-                                    existing.viaWallets.push(connectedAddr);
-                                }
-                                indirectConnections.set(indirectAddr, existing);
-                            }
-                        }
+                    const holderTxs = await fetchParsedTransactions(holder, 50);
+                    if (holderTxs.length === 0) continue;
+
+                    const holderProfile = buildWalletProfile(holder, holderTxs);
+                    const similarity = calculateSimilarity(targetProf, holderProfile);
+
+                    if (similarity.score > 10) {
+                        results.push({
+                            address: holder,
+                            similarityScore: similarity.score,
+                            sharedTokens: similarity.sharedTokens,
+                            sharedTradeCount: similarity.sharedTradeCount,
+                            timingCorrelation: similarity.timingCorrelation,
+                            details: similarity.details
+                        });
                     }
-                } catch (e) {
-                    console.log(`Failed to analyze ${connectedAddr}`);
+                } catch {
+                    continue;
                 }
+
+                // Small delay to avoid rate limits
+                await new Promise(r => setTimeout(r, 200));
             }
 
-            // Step 5: Build result
-            setProgress('Building analysis result...');
-            
-            const connectedWallets: WalletConnection[] = [];
+            // Sort by similarity score
+            results.sort((a, b) => b.similarityScore - a.similarityScore);
+            setSimilarWallets(results);
+            setProgressPercent(100);
+            setProgress(`Found ${results.length} wallets with similar trading patterns`);
 
-            // Add direct connections
-            for (const [addr, data] of connectedWalletsMap) {
-                const timestamps = data.timestamps.filter(t => t > 0).sort();
-                connectedWallets.push({
-                    address: addr,
-                    type: 'direct',
-                    transactions: data.count,
-                    totalAmount: data.amount,
-                    firstSeen: timestamps.length > 0 ? formatDate(timestamps[0]) : 'Unknown',
-                    lastSeen: timestamps.length > 0 ? formatDate(timestamps[timestamps.length - 1]) : 'Unknown',
-                    confidence: Math.min(100, data.count * 10)
-                });
-            }
-
-            // Add indirect connections (found via common counterparties)
-            for (const [addr, data] of indirectConnections) {
-                if (data.viaWallets.length >= 2) {
-                    connectedWallets.push({
-                        address: addr,
-                        type: 'indirect',
-                        transactions: data.count,
-                        totalAmount: 0,
-                        firstSeen: 'Via ' + data.viaWallets.length + ' wallets',
-                        lastSeen: '--',
-                        confidence: Math.min(80, data.viaWallets.length * 20)
-                    });
-                }
-            }
-
-            // Sort by confidence
-            connectedWallets.sort((a, b) => b.confidence - a.confidence);
-
-            // Build clusters (wallets likely owned by same person)
-            const clusters: string[][] = [];
-            const highConfidence = connectedWallets.filter(w => w.confidence >= 50 && w.type === 'direct');
-            if (highConfidence.length > 0) {
-                clusters.push([walletAddress, ...highConfidence.slice(0, 5).map(w => w.address)]);
-            }
-
-            setResult({
-                sourceWallet: walletAddress,
-                connectedWallets: connectedWallets.slice(0, 50),
-                transactions: processedTxs,
-                clusters
-            });
-
-            setProgress('Analysis complete!');
         } catch (err) {
             console.error('Analysis error:', err);
-            setError('Failed to analyze wallet. Please try again.');
+            setError('Analysis failed. Please try again.');
         } finally {
             setIsAnalyzing(false);
         }
@@ -283,41 +324,63 @@ const WalletAnalyzerApp: React.FC = () => {
         navigator.clipboard.writeText(text);
     };
 
+    const getScoreColor = (score: number) => {
+        if (score >= 70) return '#14F195';
+        if (score >= 40) return '#FFD700';
+        return '#ff8fa3';
+    };
+
+    const getScoreLabel = (score: number) => {
+        if (score >= 70) return 'High Match';
+        if (score >= 40) return 'Medium Match';
+        return 'Low Match';
+    };
+
     return (
         <div className="wallet-analyzer">
             <div className="analyzer-header">
-                <h1>🔍 Wallet Analyzer</h1>
-                <p>Trace wallet connections and find related addresses</p>
+                <h1>🔍 Wallet Pattern Analyzer</h1>
+                <p>Find wallets with similar trading patterns among token holders</p>
             </div>
 
             <div className="input-section">
-                <div className="input-group">
-                    <label>Wallet Address *</label>
-                    <input
-                        type="text"
-                        placeholder="Enter Solana wallet address..."
-                        value={walletAddress}
-                        onChange={(e) => setWalletAddress(e.target.value)}
-                        className="address-input"
-                    />
+                <div className="input-row">
+                    <div className="input-group">
+                        <label>🎯 Target Wallet *</label>
+                        <input
+                            type="text"
+                            placeholder="Wallet to find similar traders to..."
+                            value={targetWallet}
+                            onChange={(e) => setTargetWallet(e.target.value)}
+                            className="address-input"
+                        />
+                    </div>
+
+                    <div className="input-group">
+                        <label>🪙 Token Mint *</label>
+                        <input
+                            type="text"
+                            placeholder="Token to scan holders..."
+                            value={tokenMint}
+                            onChange={(e) => setTokenMint(e.target.value)}
+                            className="address-input"
+                        />
+                    </div>
                 </div>
 
-                <div className="input-group">
-                    <label>Token Mint (Optional)</label>
-                    <input
-                        type="text"
-                        placeholder="Filter by specific token mint..."
-                        value={tokenMint}
-                        onChange={(e) => setTokenMint(e.target.value)}
-                        className="address-input"
-                    />
-                    <span className="input-hint">Leave empty to analyze all transactions</span>
+                <div className="info-box">
+                    <p>📊 This tool scans token holders and compares their trading history with the target wallet to find potentially related wallets based on:</p>
+                    <ul>
+                        <li>Shared tokens traded</li>
+                        <li>Similar buy/sell timing</li>
+                        <li>Trading pattern correlation</li>
+                    </ul>
                 </div>
 
                 <button 
                     className="analyze-btn" 
                     onClick={analyzeWallet}
-                    disabled={isAnalyzing || !walletAddress}
+                    disabled={isAnalyzing || !targetWallet || !tokenMint}
                 >
                     {isAnalyzing ? (
                         <>
@@ -325,12 +388,17 @@ const WalletAnalyzerApp: React.FC = () => {
                             Analyzing...
                         </>
                     ) : (
-                        <>🔎 Analyze Wallet</>
+                        <>🔎 Find Similar Wallets</>
                     )}
                 </button>
 
-                {progress && isAnalyzing && (
-                    <div className="progress-text">{progress}</div>
+                {isAnalyzing && (
+                    <div className="progress-section">
+                        <div className="progress-bar-container">
+                            <div className="progress-bar-fill" style={{ width: `${progressPercent}%` }}></div>
+                        </div>
+                        <p className="progress-text">{progress}</p>
+                    </div>
                 )}
 
                 {error && (
@@ -338,104 +406,127 @@ const WalletAnalyzerApp: React.FC = () => {
                 )}
             </div>
 
-            {result && (
-                <div className="results-section">
-                    <div className="results-summary">
-                        <div className="summary-card">
-                            <span className="summary-value">{result.connectedWallets.length}</span>
-                            <span className="summary-label">Connected Wallets</span>
+            {targetProfile && (
+                <div className="target-summary">
+                    <h3>📋 Target Wallet Summary</h3>
+                    <div className="summary-stats">
+                        <div className="stat">
+                            <span className="stat-value">{targetProfile.trades.length}</span>
+                            <span className="stat-label">Total Trades</span>
                         </div>
-                        <div className="summary-card">
-                            <span className="summary-value">
-                                {result.connectedWallets.filter(w => w.type === 'direct').length}
-                            </span>
-                            <span className="summary-label">Direct Connections</span>
+                        <div className="stat">
+                            <span className="stat-value">{targetProfile.tokensMinted.length}</span>
+                            <span className="stat-label">Tokens Traded</span>
                         </div>
-                        <div className="summary-card">
-                            <span className="summary-value">
-                                {result.connectedWallets.filter(w => w.confidence >= 70).length}
-                            </span>
-                            <span className="summary-label">High Confidence</span>
+                        <div className="stat">
+                            <span className="stat-value">{targetProfile.trades.filter(t => t.type === 'buy').length}</span>
+                            <span className="stat-label">Buys</span>
+                        </div>
+                        <div className="stat">
+                            <span className="stat-value">{targetProfile.trades.filter(t => t.type === 'sell').length}</span>
+                            <span className="stat-label">Sells</span>
                         </div>
                     </div>
+                </div>
+            )}
 
-                    {result.clusters.length > 0 && (
-                        <div className="clusters-section">
-                            <h3>🔗 Likely Same Owner</h3>
-                            <div className="cluster-box">
-                                {result.clusters[0].map((addr, i) => (
-                                    <span key={addr} className="cluster-address">
-                                        {i === 0 ? '👤 ' : '↔️ '}
-                                        <code onClick={() => copyToClipboard(addr)}>{formatAddress(addr)}</code>
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+            {similarWallets.length > 0 && (
+                <div className="results-section">
+                    <h3>🎯 Similar Wallets Found ({similarWallets.length})</h3>
+                    <p className="results-subtitle">Sorted by trading pattern similarity</p>
 
                     <div className="wallets-list">
-                        <h3>📋 Connected Wallets</h3>
-                        {result.connectedWallets.map((wallet) => (
+                        {similarWallets.map((wallet, index) => (
                             <div 
-                                key={wallet.address} 
-                                className={`wallet-card ${wallet.type} ${expandedWallet === wallet.address ? 'expanded' : ''}`}
+                                key={wallet.address}
+                                className={`wallet-card ${expandedWallet === wallet.address ? 'expanded' : ''}`}
                                 onClick={() => setExpandedWallet(expandedWallet === wallet.address ? null : wallet.address)}
                             >
+                                <div className="wallet-rank">#{index + 1}</div>
+                                
                                 <div className="wallet-main">
-                                    <div className="wallet-address">
-                                        <code onClick={(e) => { e.stopPropagation(); copyToClipboard(wallet.address); }}>
+                                    <div className="wallet-header-row">
+                                        <code 
+                                            className="wallet-address"
+                                            onClick={(e) => { e.stopPropagation(); copyToClipboard(wallet.address); }}
+                                        >
                                             {wallet.address}
                                         </code>
-                                        <span className={`connection-badge ${wallet.type}`}>
-                                            {wallet.type === 'direct' ? '↔️ Direct' : '🔀 Indirect'}
-                                        </span>
-                                    </div>
-                                    <div className="wallet-meta">
-                                        <span className="meta-item">
-                                            <strong>{wallet.transactions}</strong> txns
-                                        </span>
-                                        {wallet.totalAmount > 0 && (
-                                            <span className="meta-item">
-                                                <strong>{wallet.totalAmount.toLocaleString()}</strong> tokens
-                                            </span>
-                                        )}
-                                        <span className="meta-item">
-                                            First: {wallet.firstSeen}
-                                        </span>
-                                        <span className="meta-item">
-                                            Last: {wallet.lastSeen}
-                                        </span>
-                                    </div>
-                                    <div className="confidence-bar">
                                         <div 
-                                            className="confidence-fill" 
-                                            style={{ width: `${wallet.confidence}%` }}
-                                        ></div>
-                                        <span className="confidence-text">{wallet.confidence}% confidence</span>
-                                    </div>
-                                </div>
-                                
-                                {expandedWallet === wallet.address && (
-                                    <div className="wallet-actions">
-                                        <a 
-                                            href={`https://solscan.io/account/${wallet.address}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="action-link"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            View on Solscan →
-                                        </a>
-                                        <button 
-                                            className="action-btn"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setWalletAddress(wallet.address);
-                                                setResult(null);
+                                            className="score-badge"
+                                            style={{ 
+                                                background: `${getScoreColor(wallet.similarityScore)}20`,
+                                                color: getScoreColor(wallet.similarityScore),
+                                                borderColor: getScoreColor(wallet.similarityScore)
                                             }}
                                         >
-                                            Analyze This Wallet
-                                        </button>
+                                            {wallet.similarityScore}% • {getScoreLabel(wallet.similarityScore)}
+                                        </div>
+                                    </div>
+
+                                    <div className="wallet-metrics">
+                                        <span className="metric">
+                                            <strong>{wallet.sharedTokens.length}</strong> shared tokens
+                                        </span>
+                                        <span className="metric">
+                                            <strong>{wallet.sharedTradeCount}</strong> similar trades
+                                        </span>
+                                        <span className="metric">
+                                            <strong>{wallet.timingCorrelation}</strong> timing matches
+                                        </span>
+                                    </div>
+
+                                    <div className="wallet-details">{wallet.details}</div>
+
+                                    <div className="score-bar">
+                                        <div 
+                                            className="score-fill"
+                                            style={{ 
+                                                width: `${wallet.similarityScore}%`,
+                                                background: `linear-gradient(90deg, ${getScoreColor(wallet.similarityScore)}, ${getScoreColor(wallet.similarityScore)}80)`
+                                            }}
+                                        ></div>
+                                    </div>
+                                </div>
+
+                                {expandedWallet === wallet.address && (
+                                    <div className="wallet-expanded">
+                                        <div className="shared-tokens">
+                                            <h4>Shared Tokens:</h4>
+                                            <div className="token-list">
+                                                {wallet.sharedTokens.slice(0, 5).map(token => (
+                                                    <code key={token} onClick={(e) => { e.stopPropagation(); copyToClipboard(token); }}>
+                                                        {formatAddress(token)}
+                                                    </code>
+                                                ))}
+                                                {wallet.sharedTokens.length > 5 && (
+                                                    <span className="more-tokens">+{wallet.sharedTokens.length - 5} more</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="wallet-actions">
+                                            <a 
+                                                href={`https://solscan.io/account/${wallet.address}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="action-link"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                View on Solscan →
+                                            </a>
+                                            <button 
+                                                className="action-btn"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setTargetWallet(wallet.address);
+                                                    setSimilarWallets([]);
+                                                    setTargetProfile(null);
+                                                }}
+                                            >
+                                                Analyze This Wallet
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -444,8 +535,14 @@ const WalletAnalyzerApp: React.FC = () => {
                 </div>
             )}
 
+            {!isAnalyzing && similarWallets.length === 0 && targetProfile && (
+                <div className="no-results">
+                    <p>No wallets with similar trading patterns found among the token holders.</p>
+                </div>
+            )}
+
             <div className="analyzer-footer">
-                <p>Powered by Helius RPC • Data may not reflect all connections</p>
+                <p>Powered by Helius API • Analyzes trading patterns to find potentially related wallets</p>
             </div>
         </div>
     );
