@@ -144,19 +144,6 @@ const WalletAnalyzerApp: React.FC = () => {
         return wallets;
     };
 
-    const findCommonCounterparties = (
-        walletA: Map<string, any>,
-        walletB: Map<string, any>
-    ): string[] => {
-        const common: string[] = [];
-        for (const addr of walletA.keys()) {
-            if (walletB.has(addr)) {
-                common.push(addr);
-            }
-        }
-        return common;
-    };
-
     const analyzeWallet = async () => {
         if (!validateAddress(walletAddress)) {
             setError('Please enter a valid Solana wallet address');
