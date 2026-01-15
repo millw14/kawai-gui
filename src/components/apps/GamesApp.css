@@ -42,6 +42,92 @@
     text-align: left;
 }
 
+.market-panel {
+    width: 100%;
+    max-width: 680px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.market-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.market-header h3 {
+    color: #ff8fa3;
+    margin: 0;
+}
+
+.market-updated {
+    font-size: 12px;
+    color: #888;
+}
+
+.market-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.market-card {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+}
+
+.market-card .label {
+    font-size: 11px;
+    color: #aaa;
+}
+
+.market-card .value {
+    font-size: 16px;
+    color: white;
+    font-weight: 600;
+}
+
+.market-card .change {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.market-card .change.up {
+    color: #14F195;
+}
+
+.market-card .change.down {
+    color: #ff6b6b;
+}
+
+.sparkline {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.sparkline svg {
+    width: 100%;
+    height: 50px;
+}
+
+.sparkline-label {
+    margin-top: 6px;
+    font-size: 11px;
+    color: #888;
+}
+
 .rules-box h3 {
     color: #ff8fa3;
     margin-bottom: 15px;
@@ -128,6 +214,46 @@
     border-radius: 4px;
     color: #14F195;
     font-family: monospace;
+}
+
+.token-link {
+    display: inline-block;
+    margin-left: 10px;
+    color: #ff8fa3;
+    text-decoration: none;
+}
+
+.token-link:hover {
+    text-decoration: underline;
+}
+
+.fun-panel {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 20px;
+    max-width: 680px;
+    width: 100%;
+}
+
+.fun-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    padding: 12px 14px;
+    text-align: left;
+}
+
+.fun-card h4 {
+    margin: 0 0 6px;
+    color: #ff8fa3;
+    font-size: 13px;
+}
+
+.fun-card p {
+    margin: 0;
+    color: #bbb;
+    font-size: 12px;
 }
 
 /* Checking Screen */
@@ -222,6 +348,12 @@
     font-size: 18px;
     font-weight: 600;
     margin: 20px 0;
+}
+
+.meta-text {
+    color: #888;
+    font-size: 12px;
+    margin: 4px 0;
 }
 
 .action-buttons {
@@ -569,5 +701,13 @@
 
     .score-big {
         font-size: 2.5rem;
+    }
+
+    .market-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .fun-panel {
+        grid-template-columns: 1fr;
     }
 }

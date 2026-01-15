@@ -1,8 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import './GamesApp.css';
 
 const TOKEN_MINT = '6ggxkzDCAB3hjiRFUGdiNfcW2viET3REtsbEmVFXpump';
 const REQUIRED_AMOUNT = 1_000_000;
+const RPC_ENDPOINTS = [
+    'https://api.mainnet-beta.solana.com',
+    'https://rpc.ankr.com/solana',
+    'https://solana-mainnet.g.alchemy.com/v2/demo'
+];
+
+interface MarketData {
+    priceUsd: number | null;
+    priceChange24h: number | null;
+    volume24h: number | null;
+    liquidityUsd: number | null;
+    fdv: number | null;
+    lastUpdated: string | null;
+}
 
 interface Question {
     id: number;
@@ -121,12 +135,23 @@ const GamesApp: React.FC = () => {
     const [gameState, setGameState] = useState<GameState>('wallet');
     const [walletAddress, setWalletAddress] = useState('');
     const [tokenBalance, setTokenBalance] = useState(0);
+    const [accountCount, setAccountCount] = useState(0);
+    const [lastChecked, setLastChecked] = useState<string | null>(null);
     const [currentQuestion, setCurrentQuestion] = useState(0);
     const [score, setScore] = useState(0);
     const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
     const [gameQuestions, setGameQuestions] = useState<Question[]>([]);
     const [timeLeft, setTimeLeft] = useState(30);
     const [streak, setStreak] = useState(0);
+    const [marketData, setMarketData] = useState<MarketData>({
+        priceUsd: null,
+        priceChange24h: null,
+        volume24h: null,
+        liquidityUsd: null,
+        fdv: null,
+        lastUpdated: null
+    });
+    const [priceHistory, setPriceHistory] = useState<number[]>([]);
 
     // Shuffle and pick 10 random questions
     const startGame = () => {
@@ -155,8 +180,37 @@ const GamesApp: React.FC = () => {
         nextQuestion();
     };
 
+    const validateWallet = (address: string) => {
+        return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
+    };
+
+    const parseTokenAmount = (tokenAmount: { amount: string; decimals: number; uiAmount: number | null; uiAmountString?: string }) => {
+        if (tokenAmount.uiAmount !== null) return tokenAmount.uiAmount;
+        if (tokenAmount.uiAmountString) return Number(tokenAmount.uiAmountString);
+        const raw = tokenAmount.amount || '0';
+        return Number(raw) / Math.pow(10, tokenAmount.decimals);
+    };
+
+    const fetchTokenAccounts = async (endpoint: string) => {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'getTokenAccountsByOwner',
+                params: [
+                    walletAddress,
+                    { mint: TOKEN_MINT },
+                    { encoding: 'jsonParsed' }
+                ]
+            })
+        });
+        return response.json();
+    };
+
     const checkWallet = async () => {
-        if (!walletAddress || walletAddress.length < 32) {
+        if (!validateWallet(walletAddress)) {
             alert('Please enter a valid Solana wallet address');
             return;
         }
@@ -164,39 +218,37 @@ const GamesApp: React.FC = () => {
         setGameState('checking');
 
         try {
-            const response = await fetch('https://api.mainnet-beta.solana.com', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    jsonrpc: '2.0',
-                    id: 1,
-                    method: 'getTokenAccountsByOwner',
-                    params: [
-                        walletAddress,
-                        { mint: TOKEN_MINT },
-                        { encoding: 'jsonParsed' }
-                    ]
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.result?.value?.length > 0) {
-                const balance = data.result.value[0].account.data.parsed.info.tokenAmount.uiAmount || 0;
-                setTokenBalance(balance);
-                
-                if (balance >= REQUIRED_AMOUNT) {
-                    setGameState('holding');
-                } else {
-                    setGameState('not-holding');
+            let data: any = null;
+            for (const endpoint of RPC_ENDPOINTS) {
+                try {
+                    data = await fetchTokenAccounts(endpoint);
+                    if (data?.result) break;
+                } catch {
+                    // try next endpoint
                 }
+            }
+
+            const accounts = data?.result?.value ?? [];
+            const totalBalance = accounts.reduce((sum: number, account: any) => {
+                const tokenAmount = account?.account?.data?.parsed?.info?.tokenAmount;
+                if (!tokenAmount) return sum;
+                return sum + parseTokenAmount(tokenAmount);
+            }, 0);
+
+            setAccountCount(accounts.length);
+            setTokenBalance(totalBalance);
+            setLastChecked(new Date().toLocaleTimeString());
+
+            if (totalBalance >= REQUIRED_AMOUNT) {
+                setGameState('holding');
             } else {
-                setTokenBalance(0);
                 setGameState('not-holding');
             }
         } catch (error) {
             console.error('Error checking wallet:', error);
             setTokenBalance(0);
+            setAccountCount(0);
+            setLastChecked(null);
             setGameState('not-holding');
         }
     };
@@ -234,6 +286,65 @@ const GamesApp: React.FC = () => {
         return `${addr.slice(0, 4)}...${addr.slice(-4)}`;
     };
 
+    const formatNumber = (num: number | null) => {
+        if (num === null || Number.isNaN(num)) return '--';
+        if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B`;
+        if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
+        if (num >= 1_000) return `${(num / 1_000).toFixed(2)}K`;
+        return num.toFixed(4);
+    };
+
+    const sparklinePoints = useMemo(() => {
+        if (priceHistory.length === 0) return '';
+        const min = Math.min(...priceHistory);
+        const max = Math.max(...priceHistory);
+        const range = max - min || 1;
+        return priceHistory.map((p, i) => {
+            const x = (i / (priceHistory.length - 1 || 1)) * 200;
+            const y = 40 - ((p - min) / range) * 40;
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+    }, [priceHistory]);
+
+    const fetchMarketData = async () => {
+        try {
+            const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${TOKEN_MINT}`);
+            const data = await res.json();
+            const pair = data?.pairs?.[0];
+            if (!pair) return;
+
+            const priceUsd = Number(pair.priceUsd);
+            const priceChange24h = Number(pair.priceChange?.h24);
+            const volume24h = Number(pair.volume?.h24);
+            const liquidityUsd = Number(pair.liquidity?.usd);
+            const fdv = Number(pair.fdv);
+
+            setMarketData({
+                priceUsd: Number.isFinite(priceUsd) ? priceUsd : null,
+                priceChange24h: Number.isFinite(priceChange24h) ? priceChange24h : null,
+                volume24h: Number.isFinite(volume24h) ? volume24h : null,
+                liquidityUsd: Number.isFinite(liquidityUsd) ? liquidityUsd : null,
+                fdv: Number.isFinite(fdv) ? fdv : null,
+                lastUpdated: new Date().toLocaleTimeString()
+            });
+
+            if (Number.isFinite(priceUsd)) {
+                setPriceHistory(prev => {
+                    const next = [...prev, priceUsd];
+                    return next.slice(-24);
+                });
+            }
+        } catch (error) {
+            console.error('Market data error:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchMarketData();
+        const interval = setInterval(fetchMarketData, 15000);
+        return () => clearInterval(interval);
+    }, []);
+
     return (
         <div className="games-app">
             {/* Wallet Entry Screen */}
@@ -252,6 +363,45 @@ const GamesApp: React.FC = () => {
                             <li>🔥 Build streaks for bonus points</li>
                             <li>🏆 Winners get % of all CRS!</li>
                         </ul>
+                    </div>
+
+                    <div className="market-panel">
+                        <div className="market-header">
+                            <h3>📈 KAWAI Live Market</h3>
+                            <span className="market-updated">Updated: {marketData.lastUpdated ?? '--'}</span>
+                        </div>
+                        <div className="market-cards">
+                            <div className="market-card">
+                                <span className="label">Price</span>
+                                <span className="value">${formatNumber(marketData.priceUsd)}</span>
+                                <span className={`change ${marketData.priceChange24h !== null && marketData.priceChange24h < 0 ? 'down' : 'up'}`}>
+                                    {marketData.priceChange24h === null ? '--' : `${marketData.priceChange24h.toFixed(2)}%`}
+                                </span>
+                            </div>
+                            <div className="market-card">
+                                <span className="label">Liquidity</span>
+                                <span className="value">${formatNumber(marketData.liquidityUsd)}</span>
+                            </div>
+                            <div className="market-card">
+                                <span className="label">Volume (24h)</span>
+                                <span className="value">${formatNumber(marketData.volume24h)}</span>
+                            </div>
+                            <div className="market-card">
+                                <span className="label">FDV</span>
+                                <span className="value">${formatNumber(marketData.fdv)}</span>
+                            </div>
+                        </div>
+                        <div className="sparkline">
+                            <svg viewBox="0 0 200 40" preserveAspectRatio="none">
+                                <polyline
+                                    points={sparklinePoints}
+                                    fill="none"
+                                    stroke="#ff8fa3"
+                                    strokeWidth="2"
+                                />
+                            </svg>
+                            <div className="sparkline-label">Live price trend</div>
+                        </div>
                     </div>
 
                     <div className="wallet-input-section">
@@ -273,6 +423,29 @@ const GamesApp: React.FC = () => {
                         <div className="token-info">
                             <span>Token: </span>
                             <code>{TOKEN_MINT.slice(0, 8)}...{TOKEN_MINT.slice(-4)}</code>
+                            <a
+                                href={`https://pump.fun/coin/${TOKEN_MINT}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="token-link"
+                            >
+                                View on pump.fun →
+                            </a>
+                        </div>
+                    </div>
+
+                    <div className="fun-panel">
+                        <div className="fun-card">
+                            <h4>✨ Kawai Tip</h4>
+                            <p>No WSL. No VM. No Linux. Just Windows.</p>
+                        </div>
+                        <div className="fun-card">
+                            <h4>🎀 Daily Challenge</h4>
+                            <p>Score 80+ to unlock the “Kawai Pro” badge!</p>
+                        </div>
+                        <div className="fun-card">
+                            <h4>🧠 Fun Fact</h4>
+                            <p>Kawai runs native Windows processes for faster builds.</p>
                         </div>
                     </div>
                 </div>
@@ -294,6 +467,8 @@ const GamesApp: React.FC = () => {
                     <h2>❌ Insufficient $KAWAI!</h2>
                     <p className="balance-text">Your balance: <strong>{tokenBalance.toLocaleString()} $KAWAI</strong></p>
                     <p>You need at least <strong>1,000,000 $KAWAI</strong> to play!</p>
+                    <p className="meta-text">Token accounts found: {accountCount}</p>
+                    <p className="meta-text">Last checked: {lastChecked ?? '--'}</p>
                     
                     <div className="action-buttons">
                         <a 
@@ -318,6 +493,8 @@ const GamesApp: React.FC = () => {
                     <h2>✅ Welcome, Kawai Holder!</h2>
                     <p className="balance-text">Your balance: <strong>{tokenBalance.toLocaleString()} $KAWAI</strong></p>
                     <p className="wallet-text">Rewards wallet: <strong>{formatAddress(walletAddress)}</strong></p>
+                    <p className="meta-text">Token accounts found: {accountCount}</p>
+                    <p className="meta-text">Last checked: {lastChecked ?? '--'}</p>
                     <p className="ready-text">You're ready to play! 🎮</p>
                     
                     <button className="play-btn" onClick={startGame}>
