@@ -3,6 +3,8 @@ import './GamesApp.css';
 
 const TOKEN_MINT = '6ggxkzDCAB3hjiRFUGdiNfcW2viET3REtsbEmVFXpump';
 const REQUIRED_AMOUNT = 1_000_000;
+const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+const TOKEN_2022_PROGRAM_ID = 'TokenzQdBnP7g5dT8f5r4t8Z6eK2e5M5cR9p9zZ9Y7';
 const RPC_ENDPOINTS = [
     'https://api.mainnet-beta.solana.com',
     'https://rpc.ankr.com/solana',
@@ -137,6 +139,7 @@ const GamesApp: React.FC = () => {
     const [tokenBalance, setTokenBalance] = useState(0);
     const [accountCount, setAccountCount] = useState(0);
     const [lastChecked, setLastChecked] = useState<string | null>(null);
+    const [rpcUsed, setRpcUsed] = useState<string | null>(null);
     const [currentQuestion, setCurrentQuestion] = useState(0);
     const [score, setScore] = useState(0);
     const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -209,6 +212,24 @@ const GamesApp: React.FC = () => {
         return response.json();
     };
 
+    const fetchToken2022Accounts = async (endpoint: string) => {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'getTokenAccountsByOwner',
+                params: [
+                    walletAddress,
+                    { programId: TOKEN_2022_PROGRAM_ID },
+                    { encoding: 'jsonParsed' }
+                ]
+            })
+        });
+        return response.json();
+    };
+
     const checkWallet = async () => {
         if (!validateWallet(walletAddress)) {
             alert('Please enter a valid Solana wallet address');
@@ -219,25 +240,37 @@ const GamesApp: React.FC = () => {
 
         try {
             let data: any = null;
+            let data2022: any = null;
+            let usedRpc: string | null = null;
             for (const endpoint of RPC_ENDPOINTS) {
                 try {
                     data = await fetchTokenAccounts(endpoint);
-                    if (data?.result) break;
+                    data2022 = await fetchToken2022Accounts(endpoint);
+                    if (data?.result) {
+                        usedRpc = endpoint;
+                        break;
+                    }
                 } catch {
                     // try next endpoint
                 }
             }
 
             const accounts = data?.result?.value ?? [];
-            const totalBalance = accounts.reduce((sum: number, account: any) => {
+            const accounts2022 = (data2022?.result?.value ?? []).filter((account: any) => {
+                const mint = account?.account?.data?.parsed?.info?.mint;
+                return mint === TOKEN_MINT;
+            });
+
+            const totalBalance = [...accounts, ...accounts2022].reduce((sum: number, account: any) => {
                 const tokenAmount = account?.account?.data?.parsed?.info?.tokenAmount;
                 if (!tokenAmount) return sum;
                 return sum + parseTokenAmount(tokenAmount);
             }, 0);
 
-            setAccountCount(accounts.length);
+            setAccountCount(accounts.length + accounts2022.length);
             setTokenBalance(totalBalance);
             setLastChecked(new Date().toLocaleTimeString());
+            setRpcUsed(usedRpc);
 
             if (totalBalance >= REQUIRED_AMOUNT) {
                 setGameState('holding');
@@ -249,6 +282,7 @@ const GamesApp: React.FC = () => {
             setTokenBalance(0);
             setAccountCount(0);
             setLastChecked(null);
+            setRpcUsed(null);
             setGameState('not-holding');
         }
     };
@@ -308,20 +342,43 @@ const GamesApp: React.FC = () => {
 
     const fetchMarketData = async () => {
         try {
-            const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${TOKEN_MINT}`);
-            const data = await res.json();
-            const pair = data?.pairs?.[0];
-            if (!pair) return;
+            const [priceRes, dexRes] = await Promise.allSettled([
+                fetch(`https://price.jup.ag/v4/price?ids=${TOKEN_MINT}`),
+                fetch(`https://api.dexscreener.com/latest/dex/tokens/${TOKEN_MINT}`)
+            ]);
 
-            const priceUsd = Number(pair.priceUsd);
-            const priceChange24h = Number(pair.priceChange?.h24);
-            const volume24h = Number(pair.volume?.h24);
-            const liquidityUsd = Number(pair.liquidity?.usd);
-            const fdv = Number(pair.fdv);
+            let priceUsd: number | null = null;
+            let priceChange24h: number | null = null;
+            let volume24h: number | null = null;
+            let liquidityUsd: number | null = null;
+            let fdv: number | null = null;
+
+            if (priceRes.status === 'fulfilled') {
+                const priceData = await priceRes.value.json();
+                const jupPrice = priceData?.data?.[TOKEN_MINT]?.price;
+                if (Number.isFinite(jupPrice)) priceUsd = Number(jupPrice);
+            }
+
+            if (dexRes.status === 'fulfilled') {
+                const dexData = await dexRes.value.json();
+                const pair = dexData?.pairs?.[0];
+                if (pair) {
+                    const dexPrice = Number(pair.priceUsd);
+                    if (!priceUsd && Number.isFinite(dexPrice)) priceUsd = dexPrice;
+                    priceChange24h = Number(pair.priceChange?.h24);
+                    volume24h = Number(pair.volume?.h24);
+                    liquidityUsd = Number(pair.liquidity?.usd);
+                    fdv = Number(pair.fdv);
+                }
+            }
+
+            const computedChange = priceHistory.length >= 2
+                ? ((priceHistory[priceHistory.length - 1] - priceHistory[0]) / priceHistory[0]) * 100
+                : null;
 
             setMarketData({
                 priceUsd: Number.isFinite(priceUsd) ? priceUsd : null,
-                priceChange24h: Number.isFinite(priceChange24h) ? priceChange24h : null,
+                priceChange24h: Number.isFinite(priceChange24h) ? priceChange24h : computedChange,
                 volume24h: Number.isFinite(volume24h) ? volume24h : null,
                 liquidityUsd: Number.isFinite(liquidityUsd) ? liquidityUsd : null,
                 fdv: Number.isFinite(fdv) ? fdv : null,
@@ -469,6 +526,7 @@ const GamesApp: React.FC = () => {
                     <p>You need at least <strong>1,000,000 $KAWAI</strong> to play!</p>
                     <p className="meta-text">Token accounts found: {accountCount}</p>
                     <p className="meta-text">Last checked: {lastChecked ?? '--'}</p>
+                    <p className="meta-text">RPC: {rpcUsed ?? '--'}</p>
                     
                     <div className="action-buttons">
                         <a 
@@ -495,6 +553,7 @@ const GamesApp: React.FC = () => {
                     <p className="wallet-text">Rewards wallet: <strong>{formatAddress(walletAddress)}</strong></p>
                     <p className="meta-text">Token accounts found: {accountCount}</p>
                     <p className="meta-text">Last checked: {lastChecked ?? '--'}</p>
+                    <p className="meta-text">RPC: {rpcUsed ?? '--'}</p>
                     <p className="ready-text">You're ready to play! 🎮</p>
                     
                     <button className="play-btn" onClick={startGame}>
