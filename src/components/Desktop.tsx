@@ -5,6 +5,7 @@ import VSCodeApp from './apps/VSCodeApp';
 import BrowserApp from './apps/BrowserApp';
 import GitHubApp from './apps/GitHubApp';
 import GamesApp from './apps/GamesApp';
+import WalletAnalyzerApp from './apps/WalletAnalyzerApp';
 import GuideCharacter from './GuideCharacter';
 import './Desktop.css';
 
@@ -30,6 +31,7 @@ const Desktop: React.FC = () => {
         { id: 'browser', name: 'Browser', icon: '/icons/chrome.png', color: '#4285F4' },
         { id: 'github', name: 'GitHub', icon: '/icons/github.png', color: '#6e5494' },
         { id: 'games', name: 'Games', icon: '/icons/appliance.png', color: '#FF6B6B' },
+        { id: 'analyzer', name: 'Wallet Analyzer', icon: '/icons/windows.png', color: '#14F195' },
     ];
 
     const openWindow = (appId: string) => {
@@ -84,6 +86,13 @@ const Desktop: React.FC = () => {
                     title: 'Games',
                     icon: '/icons/appliance.png',
                     component: <GamesApp />,
+                };
+                break;
+            case 'analyzer':
+                windowConfig = {
+                    title: 'Wallet Analyzer',
+                    icon: '/icons/windows.png',
+                    component: <WalletAnalyzerApp />,
                 };
                 break;
         }

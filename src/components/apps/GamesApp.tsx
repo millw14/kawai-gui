@@ -3,10 +3,11 @@ import './GamesApp.css';
 
 const TOKEN_MINT = '6ggxkzDCAB3hjiRFUGdiNfcW2viET3REtsbEmVFXpump';
 const REQUIRED_AMOUNT = 1_000_000;
-// RPC endpoints - QuickNode demo works!
+const HELIUS_API_KEY = '22039ce1-fa6d-44d0-9995-3ac0b4f039e9';
+// RPC endpoints with Helius as primary
 const RPC_ENDPOINTS = [
-    'https://docs-demo.solana-mainnet.quiknode.pro/',
-    'https://api.mainnet-beta.solana.com'
+    `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`,
+    'https://docs-demo.solana-mainnet.quiknode.pro/'
 ];
 
 interface MarketData {
