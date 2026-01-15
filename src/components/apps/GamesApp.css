@@ -69,6 +69,55 @@
     color: #888;
 }
 
+.market-hero {
+    background: linear-gradient(135deg, rgba(255, 143, 163, 0.15), rgba(20, 241, 149, 0.1));
+    border: 1px solid rgba(255, 143, 163, 0.3);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.market-cap-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.mcap-label {
+    font-size: 14px;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.mcap-value {
+    font-size: 2.2rem;
+    font-weight: 700;
+    background: linear-gradient(90deg, #ff8fa3, #14F195);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.mcap-change {
+    font-size: 16px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+
+.mcap-change.up {
+    color: #14F195;
+    background: rgba(20, 241, 149, 0.15);
+}
+
+.mcap-change.down {
+    color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.15);
+}
+
 .market-cards {
     display: grid;
     grid-template-columns: repeat(4, 1fr);

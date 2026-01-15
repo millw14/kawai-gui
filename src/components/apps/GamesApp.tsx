@@ -3,18 +3,11 @@ import './GamesApp.css';
 
 const TOKEN_MINT = '6ggxkzDCAB3hjiRFUGdiNfcW2viET3REtsbEmVFXpump';
 const REQUIRED_AMOUNT = 1_000_000;
-// Token-2022 program ID for newer tokens
-const TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
-// Multiple RPC endpoints for reliability
-const RPC_ENDPOINTS = [
-    'https://api.mainnet-beta.solana.com',
-    'https://rpc.ankr.com/solana',
-    'https://solana-api.projectserum.com',
-    'https://ssc-dao.genesysgo.net'
-];
+const RPC_URL = 'https://api.mainnet-beta.solana.com';
 
 interface MarketData {
     priceUsd: number | null;
+    marketCap: number | null;
     priceChange24h: number | null;
     volume24h: number | null;
     liquidityUsd: number | null;
@@ -150,6 +143,7 @@ const GamesApp: React.FC = () => {
     const [streak, setStreak] = useState(0);
     const [marketData, setMarketData] = useState<MarketData>({
         priceUsd: null,
+        marketCap: null,
         priceChange24h: null,
         volume24h: null,
         liquidityUsd: null,
@@ -196,48 +190,6 @@ const GamesApp: React.FC = () => {
         return Number(raw) / Math.pow(10, tokenAmount.decimals);
     };
 
-    const fetchTokenAccountsByMint = async (endpoint: string) => {
-        console.log(`[KAWAI] Fetching by mint from ${endpoint}`);
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: 1,
-                method: 'getTokenAccountsByOwner',
-                params: [
-                    walletAddress,
-                    { mint: TOKEN_MINT },
-                    { encoding: 'jsonParsed' }
-                ]
-            })
-        });
-        const data = await response.json();
-        console.log(`[KAWAI] By mint response:`, data);
-        return data;
-    };
-
-    const fetchTokenAccountsByProgram = async (endpoint: string, programId: string) => {
-        console.log(`[KAWAI] Fetching by program ${programId} from ${endpoint}`);
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: 1,
-                method: 'getTokenAccountsByOwner',
-                params: [
-                    walletAddress,
-                    { programId: programId },
-                    { encoding: 'jsonParsed' }
-                ]
-            })
-        });
-        const data = await response.json();
-        console.log(`[KAWAI] By program response:`, data);
-        return data;
-    };
-
     const checkWallet = async () => {
         if (!validateWallet(walletAddress)) {
             alert('Please enter a valid Solana wallet address');
@@ -245,68 +197,38 @@ const GamesApp: React.FC = () => {
         }
 
         setGameState('checking');
-        console.log(`[KAWAI] Checking wallet: ${walletAddress}`);
-        console.log(`[KAWAI] Looking for token: ${TOKEN_MINT}`);
 
         try {
-            let allAccounts: any[] = [];
-            let usedRpc: string | null = null;
+            const response = await fetch(RPC_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'getTokenAccountsByOwner',
+                    params: [
+                        walletAddress,
+                        { mint: TOKEN_MINT },
+                        { encoding: 'jsonParsed' }
+                    ]
+                })
+            });
 
-            for (const endpoint of RPC_ENDPOINTS) {
-                try {
-                    console.log(`[KAWAI] Trying RPC: ${endpoint}`);
-                    
-                    // Method 1: Query by mint directly (most reliable)
-                    const byMint = await fetchTokenAccountsByMint(endpoint);
-                    
-                    if (byMint?.result) {
-                        usedRpc = endpoint;
-                        const mintAccounts = byMint.result.value || [];
-                        console.log(`[KAWAI] Found ${mintAccounts.length} accounts by mint`);
-                        allAccounts.push(...mintAccounts);
-                        
-                        // Also try Token-2022 program for this mint
-                        try {
-                            const by2022 = await fetchTokenAccountsByProgram(endpoint, TOKEN_2022_PROGRAM_ID);
-                            const accounts2022 = (by2022?.result?.value || []).filter((acc: any) => {
-                                const mint = acc?.account?.data?.parsed?.info?.mint;
-                                return mint === TOKEN_MINT;
-                            });
-                            console.log(`[KAWAI] Found ${accounts2022.length} Token-2022 accounts`);
-                            allAccounts.push(...accounts2022);
-                        } catch (e) {
-                            console.log(`[KAWAI] Token-2022 query failed:`, e);
-                        }
-                        
-                        break; // Success, stop trying other endpoints
-                    } else if (byMint?.error) {
-                        console.log(`[KAWAI] RPC error:`, byMint.error);
-                    }
-                } catch (e) {
-                    console.log(`[KAWAI] Endpoint ${endpoint} failed:`, e);
-                }
-            }
-
-            // Calculate total balance from all accounts
+            const data = await response.json();
+            const accounts = data?.result?.value || [];
+            
             let totalBalance = 0;
-            for (const account of allAccounts) {
+            for (const account of accounts) {
                 const tokenAmount = account?.account?.data?.parsed?.info?.tokenAmount;
                 if (tokenAmount) {
-                    const amount = parseTokenAmount(tokenAmount);
-                    console.log(`[KAWAI] Account balance: ${amount}`);
-                    totalBalance += amount;
+                    totalBalance += parseTokenAmount(tokenAmount);
                 }
             }
 
-            console.log(`[KAWAI] Total balance: ${totalBalance}`);
-            console.log(`[KAWAI] Required: ${REQUIRED_AMOUNT}`);
-            console.log(`[KAWAI] Accounts found: ${allAccounts.length}`);
-            console.log(`[KAWAI] RPC used: ${usedRpc}`);
-
-            setAccountCount(allAccounts.length);
+            setAccountCount(accounts.length);
             setTokenBalance(totalBalance);
             setLastChecked(new Date().toLocaleTimeString());
-            setRpcUsed(usedRpc ? new URL(usedRpc).hostname : null);
+            setRpcUsed('solana-mainnet');
 
             if (totalBalance >= REQUIRED_AMOUNT) {
                 setGameState('holding');
@@ -314,7 +236,7 @@ const GamesApp: React.FC = () => {
                 setGameState('not-holding');
             }
         } catch (error) {
-            console.error('[KAWAI] Error checking wallet:', error);
+            console.error('Error checking wallet:', error);
             setTokenBalance(0);
             setAccountCount(0);
             setLastChecked(new Date().toLocaleTimeString());
@@ -384,6 +306,7 @@ const GamesApp: React.FC = () => {
             ]);
 
             let priceUsd: number | null = null;
+            let marketCap: number | null = null;
             let priceChange24h: number | null = null;
             let volume24h: number | null = null;
             let liquidityUsd: number | null = null;
@@ -405,16 +328,14 @@ const GamesApp: React.FC = () => {
                     volume24h = Number(pair.volume?.h24);
                     liquidityUsd = Number(pair.liquidity?.usd);
                     fdv = Number(pair.fdv);
+                    marketCap = Number(pair.marketCap || pair.fdv);
                 }
             }
 
-            const computedChange = priceHistory.length >= 2
-                ? ((priceHistory[priceHistory.length - 1] - priceHistory[0]) / priceHistory[0]) * 100
-                : null;
-
             setMarketData({
                 priceUsd: Number.isFinite(priceUsd) ? priceUsd : null,
-                priceChange24h: Number.isFinite(priceChange24h) ? priceChange24h : computedChange,
+                marketCap: Number.isFinite(marketCap) ? marketCap : null,
+                priceChange24h: Number.isFinite(priceChange24h) ? priceChange24h : null,
                 volume24h: Number.isFinite(volume24h) ? volume24h : null,
                 liquidityUsd: Number.isFinite(liquidityUsd) ? liquidityUsd : null,
                 fdv: Number.isFinite(fdv) ? fdv : null,
@@ -464,20 +385,26 @@ const GamesApp: React.FC = () => {
                             <h3>📈 KAWAI Live Market</h3>
                             <span className="market-updated">Updated: {marketData.lastUpdated ?? '--'}</span>
                         </div>
+                        <div className="market-hero">
+                            <div className="market-cap-display">
+                                <span className="mcap-label">Market Cap</span>
+                                <span className="mcap-value">${formatNumber(marketData.marketCap)}</span>
+                                <span className={`mcap-change ${marketData.priceChange24h !== null && marketData.priceChange24h < 0 ? 'down' : 'up'}`}>
+                                    {marketData.priceChange24h === null ? '--' : `${marketData.priceChange24h > 0 ? '+' : ''}${marketData.priceChange24h.toFixed(2)}%`}
+                                </span>
+                            </div>
+                        </div>
                         <div className="market-cards">
                             <div className="market-card">
                                 <span className="label">Price</span>
                                 <span className="value">${formatNumber(marketData.priceUsd)}</span>
-                                <span className={`change ${marketData.priceChange24h !== null && marketData.priceChange24h < 0 ? 'down' : 'up'}`}>
-                                    {marketData.priceChange24h === null ? '--' : `${marketData.priceChange24h.toFixed(2)}%`}
-                                </span>
                             </div>
                             <div className="market-card">
                                 <span className="label">Liquidity</span>
                                 <span className="value">${formatNumber(marketData.liquidityUsd)}</span>
                             </div>
                             <div className="market-card">
-                                <span className="label">Volume (24h)</span>
+                                <span className="label">Volume 24h</span>
                                 <span className="value">${formatNumber(marketData.volume24h)}</span>
                             </div>
                             <div className="market-card">
