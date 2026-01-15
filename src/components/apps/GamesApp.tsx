@@ -3,11 +3,14 @@ import './GamesApp.css';
 
 const TOKEN_MINT = '6ggxkzDCAB3hjiRFUGdiNfcW2viET3REtsbEmVFXpump';
 const REQUIRED_AMOUNT = 1_000_000;
-const TOKEN_2022_PROGRAM_ID = 'TokenzQdBnP7g5dT8f5r4t8Z6eK2e5M5cR9p9zZ9Y7';
+// Token-2022 program ID for newer tokens
+const TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
+// Multiple RPC endpoints for reliability
 const RPC_ENDPOINTS = [
     'https://api.mainnet-beta.solana.com',
     'https://rpc.ankr.com/solana',
-    'https://solana-mainnet.g.alchemy.com/v2/demo'
+    'https://solana-api.projectserum.com',
+    'https://ssc-dao.genesysgo.net'
 ];
 
 interface MarketData {
@@ -193,7 +196,8 @@ const GamesApp: React.FC = () => {
         return Number(raw) / Math.pow(10, tokenAmount.decimals);
     };
 
-    const fetchTokenAccounts = async (endpoint: string) => {
+    const fetchTokenAccountsByMint = async (endpoint: string) => {
+        console.log(`[KAWAI] Fetching by mint from ${endpoint}`);
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -208,10 +212,13 @@ const GamesApp: React.FC = () => {
                 ]
             })
         });
-        return response.json();
+        const data = await response.json();
+        console.log(`[KAWAI] By mint response:`, data);
+        return data;
     };
 
-    const fetchToken2022Accounts = async (endpoint: string) => {
+    const fetchTokenAccountsByProgram = async (endpoint: string, programId: string) => {
+        console.log(`[KAWAI] Fetching by program ${programId} from ${endpoint}`);
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -221,12 +228,14 @@ const GamesApp: React.FC = () => {
                 method: 'getTokenAccountsByOwner',
                 params: [
                     walletAddress,
-                    { programId: TOKEN_2022_PROGRAM_ID },
+                    { programId: programId },
                     { encoding: 'jsonParsed' }
                 ]
             })
         });
-        return response.json();
+        const data = await response.json();
+        console.log(`[KAWAI] By program response:`, data);
+        return data;
     };
 
     const checkWallet = async () => {
@@ -236,40 +245,68 @@ const GamesApp: React.FC = () => {
         }
 
         setGameState('checking');
+        console.log(`[KAWAI] Checking wallet: ${walletAddress}`);
+        console.log(`[KAWAI] Looking for token: ${TOKEN_MINT}`);
 
         try {
-            let data: any = null;
-            let data2022: any = null;
+            let allAccounts: any[] = [];
             let usedRpc: string | null = null;
+
             for (const endpoint of RPC_ENDPOINTS) {
                 try {
-                    data = await fetchTokenAccounts(endpoint);
-                    data2022 = await fetchToken2022Accounts(endpoint);
-                    if (data?.result) {
+                    console.log(`[KAWAI] Trying RPC: ${endpoint}`);
+                    
+                    // Method 1: Query by mint directly (most reliable)
+                    const byMint = await fetchTokenAccountsByMint(endpoint);
+                    
+                    if (byMint?.result) {
                         usedRpc = endpoint;
-                        break;
+                        const mintAccounts = byMint.result.value || [];
+                        console.log(`[KAWAI] Found ${mintAccounts.length} accounts by mint`);
+                        allAccounts.push(...mintAccounts);
+                        
+                        // Also try Token-2022 program for this mint
+                        try {
+                            const by2022 = await fetchTokenAccountsByProgram(endpoint, TOKEN_2022_PROGRAM_ID);
+                            const accounts2022 = (by2022?.result?.value || []).filter((acc: any) => {
+                                const mint = acc?.account?.data?.parsed?.info?.mint;
+                                return mint === TOKEN_MINT;
+                            });
+                            console.log(`[KAWAI] Found ${accounts2022.length} Token-2022 accounts`);
+                            allAccounts.push(...accounts2022);
+                        } catch (e) {
+                            console.log(`[KAWAI] Token-2022 query failed:`, e);
+                        }
+                        
+                        break; // Success, stop trying other endpoints
+                    } else if (byMint?.error) {
+                        console.log(`[KAWAI] RPC error:`, byMint.error);
                     }
-                } catch {
-                    // try next endpoint
+                } catch (e) {
+                    console.log(`[KAWAI] Endpoint ${endpoint} failed:`, e);
                 }
             }
 
-            const accounts = data?.result?.value ?? [];
-            const accounts2022 = (data2022?.result?.value ?? []).filter((account: any) => {
-                const mint = account?.account?.data?.parsed?.info?.mint;
-                return mint === TOKEN_MINT;
-            });
-
-            const totalBalance = [...accounts, ...accounts2022].reduce((sum: number, account: any) => {
+            // Calculate total balance from all accounts
+            let totalBalance = 0;
+            for (const account of allAccounts) {
                 const tokenAmount = account?.account?.data?.parsed?.info?.tokenAmount;
-                if (!tokenAmount) return sum;
-                return sum + parseTokenAmount(tokenAmount);
-            }, 0);
+                if (tokenAmount) {
+                    const amount = parseTokenAmount(tokenAmount);
+                    console.log(`[KAWAI] Account balance: ${amount}`);
+                    totalBalance += amount;
+                }
+            }
 
-            setAccountCount(accounts.length + accounts2022.length);
+            console.log(`[KAWAI] Total balance: ${totalBalance}`);
+            console.log(`[KAWAI] Required: ${REQUIRED_AMOUNT}`);
+            console.log(`[KAWAI] Accounts found: ${allAccounts.length}`);
+            console.log(`[KAWAI] RPC used: ${usedRpc}`);
+
+            setAccountCount(allAccounts.length);
             setTokenBalance(totalBalance);
             setLastChecked(new Date().toLocaleTimeString());
-            setRpcUsed(usedRpc);
+            setRpcUsed(usedRpc ? new URL(usedRpc).hostname : null);
 
             if (totalBalance >= REQUIRED_AMOUNT) {
                 setGameState('holding');
@@ -277,11 +314,11 @@ const GamesApp: React.FC = () => {
                 setGameState('not-holding');
             }
         } catch (error) {
-            console.error('Error checking wallet:', error);
+            console.error('[KAWAI] Error checking wallet:', error);
             setTokenBalance(0);
             setAccountCount(0);
-            setLastChecked(null);
-            setRpcUsed(null);
+            setLastChecked(new Date().toLocaleTimeString());
+            setRpcUsed('error');
             setGameState('not-holding');
         }
     };
