@@ -230,6 +230,46 @@
     color: #888;
 }
 
+.target-status-flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.status-flag {
+    background: rgba(20, 241, 149, 0.15);
+    border: 1px solid rgba(20, 241, 149, 0.3);
+    color: #14F195;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.target-token-info {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.token-info-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+}
+
+.token-info-row span {
+    color: #888;
+}
+
+.token-info-row strong {
+    color: #ccc;
+}
+
 /* Results */
 .results-section {
     display: flex;
@@ -322,6 +362,21 @@
     font-weight: 600;
     border: 1px solid;
     white-space: nowrap;
+}
+
+.wallet-flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.wallet-flag {
+    background: rgba(153, 69, 255, 0.15);
+    border: 1px solid rgba(153, 69, 255, 0.25);
+    color: #c4a6ff;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 11px;
 }
 
 .wallet-metrics {

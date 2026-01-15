@@ -33,6 +33,19 @@ interface SimilarWallet {
     sharedTradeCount: number;
     timingCorrelation: number;
     details: string;
+    flags: string[];
+}
+
+interface WalletStatus {
+    currentlyHolding: boolean;
+    holdingAmount: number;
+    totalBought: number;
+    totalSold: number;
+    firstTradeTime: number;
+    lastTradeTime: number;
+    tradeCount: number;
+    isEarlyBuyer: boolean;
+    profitStatus: 'profit' | 'loss' | 'holding' | 'unknown';
 }
 
 const WalletAnalyzerApp: React.FC = () => {
@@ -45,9 +58,139 @@ const WalletAnalyzerApp: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [expandedWallet, setExpandedWallet] = useState<string | null>(null);
     const [targetProfile, setTargetProfile] = useState<WalletProfile | null>(null);
+    const [targetStatus, setTargetStatus] = useState<WalletStatus | null>(null);
 
     const validateAddress = (addr: string) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr);
     const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+    const formatTime = (ts: number) => ts ? new Date(ts * 1000).toLocaleDateString() : 'Unknown';
+
+    // Check current token holdings
+    const checkCurrentHolding = async (wallet: string, mint: string): Promise<number> => {
+        try {
+            const response = await fetch(HELIUS_RPC, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'getTokenAccountsByOwner',
+                    params: [wallet, { mint }, { encoding: 'jsonParsed' }]
+                })
+            });
+            const data = await response.json();
+            const accounts = data?.result?.value || [];
+            let total = 0;
+            for (const acc of accounts) {
+                total += acc?.account?.data?.parsed?.info?.tokenAmount?.uiAmount || 0;
+            }
+            return total;
+        } catch {
+            return 0;
+        }
+    };
+
+    // Get token creation time (first transaction)
+    const getTokenCreationTime = async (mint: string): Promise<number> => {
+        try {
+            const response = await fetch(HELIUS_RPC, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'getSignaturesForAddress',
+                    params: [mint, { limit: 1000 }]
+                })
+            });
+            const data = await response.json();
+            const sigs = data?.result || [];
+            if (sigs.length > 0) {
+                return sigs[sigs.length - 1].blockTime || 0;
+            }
+            return 0;
+        } catch {
+            return 0;
+        }
+    };
+
+    // Analyze wallet status for a specific token
+    const analyzeWalletStatus = (profile: WalletProfile, targetToken: string, tokenCreationTime: number): WalletStatus => {
+        const tokenTrades = profile.trades.filter(t => t.tokenMint === targetToken);
+        
+        let totalBought = 0;
+        let totalSold = 0;
+        let firstTradeTime = Infinity;
+        let lastTradeTime = 0;
+
+        for (const trade of tokenTrades) {
+            if (trade.type === 'buy') {
+                totalBought += trade.amount;
+            } else {
+                totalSold += trade.amount;
+            }
+            if (trade.timestamp < firstTradeTime) firstTradeTime = trade.timestamp;
+            if (trade.timestamp > lastTradeTime) lastTradeTime = trade.timestamp;
+        }
+
+        // Check if early buyer (within first 24 hours of token creation)
+        const isEarlyBuyer = tokenCreationTime > 0 && firstTradeTime > 0 && 
+            (firstTradeTime - tokenCreationTime) < 86400;
+
+        // Determine profit status
+        let profitStatus: 'profit' | 'loss' | 'holding' | 'unknown' = 'unknown';
+        if (totalBought > 0 && totalSold > 0) {
+            profitStatus = totalSold > totalBought * 0.8 ? 'profit' : 'loss';
+        } else if (totalBought > 0 && totalSold === 0) {
+            profitStatus = 'holding';
+        }
+
+        return {
+            currentlyHolding: false, // Will be updated with actual balance check
+            holdingAmount: 0,
+            totalBought,
+            totalSold,
+            firstTradeTime: firstTradeTime === Infinity ? 0 : firstTradeTime,
+            lastTradeTime,
+            tradeCount: tokenTrades.length,
+            isEarlyBuyer,
+            profitStatus
+        };
+    };
+
+    // Generate flags/badges for a wallet
+    const generateWalletFlags = (status: WalletStatus, currentBalance: number): string[] => {
+        const flags: string[] = [];
+
+        if (currentBalance > 0) {
+            flags.push('💎 Currently Holding');
+        } else if (status.totalBought > 0) {
+            flags.push('📤 Sold Out');
+        }
+
+        if (status.isEarlyBuyer) {
+            flags.push('🚀 Early Buyer');
+        }
+
+        if (status.tradeCount >= 10) {
+            flags.push('📊 Active Trader');
+        } else if (status.tradeCount === 1) {
+            flags.push('1️⃣ Single Trade');
+        }
+
+        if (status.profitStatus === 'profit') {
+            flags.push('💰 Likely Profit');
+        } else if (status.profitStatus === 'holding') {
+            flags.push('🤲 Diamond Hands');
+        }
+
+        // Check if dormant (no trades in 30 days)
+        const thirtyDaysAgo = Date.now() / 1000 - 30 * 86400;
+        if (status.lastTradeTime < thirtyDaysAgo && status.lastTradeTime > 0) {
+            flags.push('😴 Dormant');
+        }
+
+        return flags;
+    };
 
     // Fetch parsed transaction history using Helius enhanced API
     const fetchParsedTransactions = async (wallet: string, limit = 100): Promise<any[]> => {
@@ -252,12 +395,13 @@ const WalletAnalyzerApp: React.FC = () => {
         setError(null);
         setSimilarWallets([]);
         setTargetProfile(null);
+        setTargetStatus(null);
         setProgressPercent(0);
 
         try {
             // Step 1: Build target wallet profile
             setProgress('Analyzing target wallet trades...');
-            setProgressPercent(10);
+            setProgressPercent(5);
             
             const targetTxs = await fetchParsedTransactions(targetWallet, 100);
             if (targetTxs.length === 0) {
@@ -268,12 +412,27 @@ const WalletAnalyzerApp: React.FC = () => {
 
             const targetProf = buildWalletProfile(targetWallet, targetTxs);
             setTargetProfile(targetProf);
+            setProgressPercent(10);
+
+            // Step 2: Get token creation time and target's current holding
+            setProgress('Checking token status...');
+            const [tokenCreationTime, targetCurrentBalance] = await Promise.all([
+                getTokenCreationTime(tokenMint),
+                checkCurrentHolding(targetWallet, tokenMint)
+            ]);
+            setProgressPercent(15);
+
+            // Step 3: Analyze target wallet status for this token
+            const targetStat = analyzeWalletStatus(targetProf, tokenMint, tokenCreationTime);
+            targetStat.currentlyHolding = targetCurrentBalance > 0;
+            targetStat.holdingAmount = targetCurrentBalance;
+            setTargetStatus(targetStat);
             setProgressPercent(20);
 
-            // Step 2: Get token holders
+            // Step 4: Get token holders
             setProgress('Finding token holders...');
             const holders = await getTokenHolders(tokenMint);
-            setProgressPercent(30);
+            setProgressPercent(25);
 
             if (holders.length === 0) {
                 setError('Could not find token holders');
@@ -281,21 +440,29 @@ const WalletAnalyzerApp: React.FC = () => {
                 return;
             }
 
-            // Step 3: Analyze each holder's trading patterns
+            // Step 5: Analyze each holder's trading patterns
             setProgress(`Analyzing ${holders.length} holders...`);
             const results: SimilarWallet[] = [];
 
             for (let i = 0; i < holders.length; i++) {
                 const holder = holders[i];
                 setProgress(`Analyzing holder ${i + 1}/${holders.length}: ${formatAddress(holder)}`);
-                setProgressPercent(30 + Math.round((i / holders.length) * 60));
+                setProgressPercent(25 + Math.round((i / holders.length) * 65));
 
                 try {
-                    const holderTxs = await fetchParsedTransactions(holder, 50);
+                    const [holderTxs, holderBalance] = await Promise.all([
+                        fetchParsedTransactions(holder, 50),
+                        checkCurrentHolding(holder, tokenMint)
+                    ]);
                     if (holderTxs.length === 0) continue;
 
                     const holderProfile = buildWalletProfile(holder, holderTxs);
                     const similarity = calculateSimilarity(targetProf, holderProfile);
+                    const holderStatus = analyzeWalletStatus(holderProfile, tokenMint, tokenCreationTime);
+                    holderStatus.currentlyHolding = holderBalance > 0;
+                    holderStatus.holdingAmount = holderBalance;
+
+                    const flags = generateWalletFlags(holderStatus, holderBalance);
 
                     if (similarity.score > 10) {
                         results.push({
@@ -304,7 +471,8 @@ const WalletAnalyzerApp: React.FC = () => {
                             sharedTokens: similarity.sharedTokens,
                             sharedTradeCount: similarity.sharedTradeCount,
                             timingCorrelation: similarity.timingCorrelation,
-                            details: similarity.details
+                            details: similarity.details,
+                            flags
                         });
                     }
                 } catch {
@@ -312,7 +480,7 @@ const WalletAnalyzerApp: React.FC = () => {
                 }
 
                 // Small delay to avoid rate limits
-                await new Promise(r => setTimeout(r, 200));
+                await new Promise(r => setTimeout(r, 150));
             }
 
             // Sort by similarity score
@@ -418,6 +586,15 @@ const WalletAnalyzerApp: React.FC = () => {
             {targetProfile && (
                 <div className="target-summary">
                     <h3>📋 Target Wallet Summary</h3>
+                    
+                    {targetStatus && (
+                        <div className="target-status-flags">
+                            {generateWalletFlags(targetStatus, targetStatus.holdingAmount).map((flag, i) => (
+                                <span key={i} className="status-flag">{flag}</span>
+                            ))}
+                        </div>
+                    )}
+
                     <div className="summary-stats">
                         <div className="stat">
                             <span className="stat-value">{targetProfile.trades.length}</span>
@@ -436,6 +613,23 @@ const WalletAnalyzerApp: React.FC = () => {
                             <span className="stat-label">Sells</span>
                         </div>
                     </div>
+
+                    {targetStatus && (
+                        <div className="target-token-info">
+                            <div className="token-info-row">
+                                <span>Token Balance:</span>
+                                <strong>{targetStatus.currentlyHolding ? targetStatus.holdingAmount.toLocaleString() : '0 (Sold Out)'}</strong>
+                            </div>
+                            <div className="token-info-row">
+                                <span>First Trade:</span>
+                                <strong>{formatTime(targetStatus.firstTradeTime)}</strong>
+                            </div>
+                            <div className="token-info-row">
+                                <span>Last Trade:</span>
+                                <strong>{formatTime(targetStatus.lastTradeTime)}</strong>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -472,6 +666,14 @@ const WalletAnalyzerApp: React.FC = () => {
                                             {wallet.similarityScore}% • {getScoreLabel(wallet.similarityScore)}
                                         </div>
                                     </div>
+
+                                    {wallet.flags.length > 0 && (
+                                        <div className="wallet-flags">
+                                            {wallet.flags.map((flag, i) => (
+                                                <span key={i} className="wallet-flag">{flag}</span>
+                                            ))}
+                                        </div>
+                                    )}
 
                                     <div className="wallet-metrics">
                                         <span className="metric">
