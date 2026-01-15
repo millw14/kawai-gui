@@ -5,6 +5,13 @@ const HELIUS_API_KEY = '22039ce1-fa6d-44d0-9995-3ac0b4f039e9';
 const HELIUS_RPC = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
 const HELIUS_API = `https://api.helius.xyz/v0`;
 
+// Tokens to exclude from similarity analysis (everyone trades these)
+const EXCLUDED_TOKENS = [
+    'So11111111111111111111111111111111111111112', // Wrapped SOL
+    'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+    'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
+];
+
 interface TokenTrade {
     signature: string;
     timestamp: number;
@@ -68,7 +75,7 @@ const WalletAnalyzerApp: React.FC = () => {
             if (tx.tokenTransfers && tx.tokenTransfers.length > 0) {
                 for (const transfer of tx.tokenTransfers) {
                     const mint = transfer.mint;
-                    if (!mint) continue;
+                    if (!mint || EXCLUDED_TOKENS.includes(mint)) continue;
 
                     tokensMinted.add(mint);
 
@@ -92,6 +99,7 @@ const WalletAnalyzerApp: React.FC = () => {
                 const swap = tx.events.swap;
                 if (swap.tokenInputs) {
                     for (const input of swap.tokenInputs) {
+                        if (EXCLUDED_TOKENS.includes(input.mint)) continue;
                         tokensMinted.add(input.mint);
                         trades.push({
                             signature,
@@ -104,6 +112,7 @@ const WalletAnalyzerApp: React.FC = () => {
                 }
                 if (swap.tokenOutputs) {
                     for (const output of swap.tokenOutputs) {
+                        if (EXCLUDED_TOKENS.includes(output.mint)) continue;
                         tokensMinted.add(output.mint);
                         trades.push({
                             signature,
