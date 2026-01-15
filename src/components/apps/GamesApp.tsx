@@ -3,7 +3,11 @@ import './GamesApp.css';
 
 const TOKEN_MINT = '6ggxkzDCAB3hjiRFUGdiNfcW2viET3REtsbEmVFXpump';
 const REQUIRED_AMOUNT = 1_000_000;
-const RPC_URL = 'https://api.mainnet-beta.solana.com';
+// RPC endpoints - QuickNode demo works!
+const RPC_ENDPOINTS = [
+    'https://docs-demo.solana-mainnet.quiknode.pro/',
+    'https://api.mainnet-beta.solana.com'
+];
 
 interface MarketData {
     priceUsd: number | null;
@@ -198,51 +202,74 @@ const GamesApp: React.FC = () => {
 
         setGameState('checking');
 
-        try {
-            const response = await fetch(RPC_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    jsonrpc: '2.0',
-                    id: 1,
-                    method: 'getTokenAccountsByOwner',
-                    params: [
-                        walletAddress,
-                        { mint: TOKEN_MINT },
-                        { encoding: 'jsonParsed' }
-                    ]
-                })
-            });
+        for (const rpcUrl of RPC_ENDPOINTS) {
+            try {
+                console.log(`[KAWAI] Trying RPC: ${rpcUrl}`);
+                const response = await fetch(rpcUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'getTokenAccountsByOwner',
+                        params: [
+                            walletAddress,
+                            { mint: TOKEN_MINT },
+                            { encoding: 'jsonParsed' }
+                        ]
+                    })
+                });
 
-            const data = await response.json();
-            const accounts = data?.result?.value || [];
-            
-            let totalBalance = 0;
-            for (const account of accounts) {
-                const tokenAmount = account?.account?.data?.parsed?.info?.tokenAmount;
-                if (tokenAmount) {
-                    totalBalance += parseTokenAmount(tokenAmount);
+                if (!response.ok) {
+                    console.log(`[KAWAI] RPC ${rpcUrl} returned ${response.status}`);
+                    continue;
                 }
-            }
 
-            setAccountCount(accounts.length);
-            setTokenBalance(totalBalance);
-            setLastChecked(new Date().toLocaleTimeString());
-            setRpcUsed('solana-mainnet');
+                const data = await response.json();
+                console.log(`[KAWAI] Response:`, data);
 
-            if (totalBalance >= REQUIRED_AMOUNT) {
-                setGameState('holding');
-            } else {
-                setGameState('not-holding');
+                if (data?.error) {
+                    console.log(`[KAWAI] RPC error:`, data.error);
+                    continue;
+                }
+
+                const accounts = data?.result?.value || [];
+                
+                let totalBalance = 0;
+                for (const account of accounts) {
+                    const tokenAmount = account?.account?.data?.parsed?.info?.tokenAmount;
+                    if (tokenAmount) {
+                        const amount = parseTokenAmount(tokenAmount);
+                        console.log(`[KAWAI] Found balance: ${amount}`);
+                        totalBalance += amount;
+                    }
+                }
+
+                console.log(`[KAWAI] Total: ${totalBalance}, Required: ${REQUIRED_AMOUNT}`);
+
+                setAccountCount(accounts.length);
+                setTokenBalance(totalBalance);
+                setLastChecked(new Date().toLocaleTimeString());
+                setRpcUsed(new URL(rpcUrl).hostname);
+
+                if (totalBalance >= REQUIRED_AMOUNT) {
+                    setGameState('holding');
+                } else {
+                    setGameState('not-holding');
+                }
+                return; // Success, exit
+            } catch (error) {
+                console.error(`[KAWAI] RPC ${rpcUrl} failed:`, error);
             }
-        } catch (error) {
-            console.error('Error checking wallet:', error);
-            setTokenBalance(0);
-            setAccountCount(0);
-            setLastChecked(new Date().toLocaleTimeString());
-            setRpcUsed('error');
-            setGameState('not-holding');
         }
+
+        // All RPCs failed
+        console.error('[KAWAI] All RPC endpoints failed');
+        setTokenBalance(0);
+        setAccountCount(0);
+        setLastChecked(new Date().toLocaleTimeString());
+        setRpcUsed('all-failed');
+        setGameState('not-holding');
     };
 
     const handleAnswer = (answerIndex: number) => {
@@ -300,54 +327,36 @@ const GamesApp: React.FC = () => {
 
     const fetchMarketData = async () => {
         try {
-            const [priceRes, dexRes] = await Promise.allSettled([
-                fetch(`https://price.jup.ag/v4/price?ids=${TOKEN_MINT}`),
-                fetch(`https://api.dexscreener.com/latest/dex/tokens/${TOKEN_MINT}`)
-            ]);
+            const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${TOKEN_MINT}`);
+            if (!response.ok) return;
+            
+            const dexData = await response.json();
+            const pair = dexData?.pairs?.[0];
+            
+            if (pair) {
+                const priceUsd = Number(pair.priceUsd);
+                const marketCap = Number(pair.marketCap || pair.fdv);
+                const priceChange24h = Number(pair.priceChange?.h24);
+                const volume24h = Number(pair.volume?.h24);
+                const liquidityUsd = Number(pair.liquidity?.usd);
+                const fdv = Number(pair.fdv);
 
-            let priceUsd: number | null = null;
-            let marketCap: number | null = null;
-            let priceChange24h: number | null = null;
-            let volume24h: number | null = null;
-            let liquidityUsd: number | null = null;
-            let fdv: number | null = null;
-
-            if (priceRes.status === 'fulfilled') {
-                const priceData = await priceRes.value.json();
-                const jupPrice = priceData?.data?.[TOKEN_MINT]?.price;
-                if (Number.isFinite(jupPrice)) priceUsd = Number(jupPrice);
-            }
-
-            if (dexRes.status === 'fulfilled') {
-                const dexData = await dexRes.value.json();
-                const pair = dexData?.pairs?.[0];
-                if (pair) {
-                    const dexPrice = Number(pair.priceUsd);
-                    if (!priceUsd && Number.isFinite(dexPrice)) priceUsd = dexPrice;
-                    priceChange24h = Number(pair.priceChange?.h24);
-                    volume24h = Number(pair.volume?.h24);
-                    liquidityUsd = Number(pair.liquidity?.usd);
-                    fdv = Number(pair.fdv);
-                    marketCap = Number(pair.marketCap || pair.fdv);
-                }
-            }
-
-            setMarketData({
-                priceUsd: Number.isFinite(priceUsd) ? priceUsd : null,
-                marketCap: Number.isFinite(marketCap) ? marketCap : null,
-                priceChange24h: Number.isFinite(priceChange24h) ? priceChange24h : null,
-                volume24h: Number.isFinite(volume24h) ? volume24h : null,
-                liquidityUsd: Number.isFinite(liquidityUsd) ? liquidityUsd : null,
-                fdv: Number.isFinite(fdv) ? fdv : null,
-                lastUpdated: new Date().toLocaleTimeString()
-            });
-
-            if (Number.isFinite(priceUsd)) {
-                const safePrice = priceUsd as number;
-                setPriceHistory(prev => {
-                    const next = [...prev, safePrice];
-                    return next.slice(-24);
+                setMarketData({
+                    priceUsd: Number.isFinite(priceUsd) ? priceUsd : null,
+                    marketCap: Number.isFinite(marketCap) ? marketCap : null,
+                    priceChange24h: Number.isFinite(priceChange24h) ? priceChange24h : null,
+                    volume24h: Number.isFinite(volume24h) ? volume24h : null,
+                    liquidityUsd: Number.isFinite(liquidityUsd) ? liquidityUsd : null,
+                    fdv: Number.isFinite(fdv) ? fdv : null,
+                    lastUpdated: new Date().toLocaleTimeString()
                 });
+
+                if (Number.isFinite(priceUsd)) {
+                    setPriceHistory(prev => {
+                        const next = [...prev, priceUsd];
+                        return next.slice(-24);
+                    });
+                }
             }
         } catch (error) {
             console.error('Market data error:', error);
