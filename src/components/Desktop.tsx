@@ -6,6 +6,7 @@ import BrowserApp from './apps/BrowserApp';
 import GitHubApp from './apps/GitHubApp';
 import GamesApp from './apps/GamesApp';
 import WalletAnalyzerApp from './apps/WalletAnalyzerApp';
+import HelpApp from './apps/HelpApp';
 import GuideCharacter from './GuideCharacter';
 import './Desktop.css';
 
@@ -30,8 +31,9 @@ const Desktop: React.FC = () => {
         { id: 'vscode', name: 'VS Code', icon: '/icons/vscode.png', color: '#007ACC' },
         { id: 'browser', name: 'Browser', icon: '/icons/chrome.png', color: '#4285F4' },
         { id: 'github', name: 'GitHub', icon: '/icons/github.png', color: '#6e5494' },
-        { id: 'games', name: 'Games', icon: '/icons/appliance.png', color: '#FF6B6B' },
+        { id: 'games', name: 'Game Center', icon: '/icons/appliance.png', color: '#FF6B6B' },
         { id: 'analyzer', name: 'Wallet Analyzer', icon: '/icons/windows.png', color: '#14F195' },
+        { id: 'help', name: 'Get Started', icon: '/icons/folder.png', color: '#F06292' },
     ];
 
     const openWindow = (appId: string) => {
@@ -39,7 +41,7 @@ const Desktop: React.FC = () => {
         if (existingWindow) {
             bringToFront(appId);
             if (existingWindow.isMinimized) {
-                setWindows(prev => prev.map(w => 
+                setWindows(prev => prev.map(w =>
                     w.id === appId ? { ...w, isMinimized: false } : w
                 ));
             }
@@ -50,10 +52,10 @@ const Desktop: React.FC = () => {
         setHighestZ(newZ);
 
         const isMobile = window.innerWidth < 768;
-        const defaultSize = isMobile 
+        const defaultSize = isMobile
             ? { width: window.innerWidth - 20, height: window.innerHeight - 100 }
             : { width: 900, height: 600 };
-        const defaultPos = isMobile 
+        const defaultPos = isMobile
             ? { x: 10, y: 10 }
             : { x: 50 + windows.length * 30, y: 50 + windows.length * 30 };
 
@@ -83,7 +85,7 @@ const Desktop: React.FC = () => {
                 break;
             case 'games':
                 windowConfig = {
-                    title: 'Games',
+                    title: 'Kawai Game Center',
                     icon: '/icons/appliance.png',
                     component: <GamesApp />,
                 };
@@ -93,6 +95,13 @@ const Desktop: React.FC = () => {
                     title: 'Wallet Analyzer',
                     icon: '/icons/windows.png',
                     component: <WalletAnalyzerApp />,
+                };
+                break;
+            case 'help':
+                windowConfig = {
+                    title: 'Kawai Documentation',
+                    icon: '/icons/folder.png',
+                    component: <HelpApp />,
                 };
                 break;
         }
@@ -122,13 +131,13 @@ const Desktop: React.FC = () => {
     };
 
     const minimizeWindow = (id: string) => {
-        setWindows(prev => prev.map(w => 
+        setWindows(prev => prev.map(w =>
             w.id === id ? { ...w, isMinimized: true } : w
         ));
     };
 
     const maximizeWindow = (id: string) => {
-        setWindows(prev => prev.map(w => 
+        setWindows(prev => prev.map(w =>
             w.id === id ? { ...w, isMaximized: !w.isMaximized } : w
         ));
     };
@@ -136,20 +145,20 @@ const Desktop: React.FC = () => {
     const bringToFront = (id: string) => {
         const newZ = highestZ + 1;
         setHighestZ(newZ);
-        setWindows(prev => prev.map(w => 
+        setWindows(prev => prev.map(w =>
             w.id === id ? { ...w, zIndex: newZ } : w
         ));
         setActiveWindow(id);
     };
 
     const updateWindowPosition = (id: string, position: { x: number; y: number }) => {
-        setWindows(prev => prev.map(w => 
+        setWindows(prev => prev.map(w =>
             w.id === id ? { ...w, position } : w
         ));
     };
 
     const updateWindowSize = (id: string, size: { width: number; height: number }) => {
-        setWindows(prev => prev.map(w => 
+        setWindows(prev => prev.map(w =>
             w.id === id ? { ...w, size } : w
         ));
     };
@@ -165,7 +174,7 @@ const Desktop: React.FC = () => {
             {/* Desktop Icons */}
             <div className="desktop-icons">
                 {desktopIcons.map((icon) => (
-                    <div 
+                    <div
                         key={icon.id}
                         className="desktop-icon"
                         onDoubleClick={() => openWindow(icon.id)}
@@ -210,13 +219,13 @@ const Desktop: React.FC = () => {
             <GuideCharacter />
 
             {/* Taskbar */}
-            <Taskbar 
+            <Taskbar
                 windows={windows}
                 activeWindow={activeWindow}
                 onWindowClick={(id) => {
                     const win = windows.find(w => w.id === id);
                     if (win?.isMinimized) {
-                        setWindows(prev => prev.map(w => 
+                        setWindows(prev => prev.map(w =>
                             w.id === id ? { ...w, isMinimized: false } : w
                         ));
                     }
