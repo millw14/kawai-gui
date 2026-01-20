@@ -1,0 +1,164 @@
+.vscode-terminal {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #1e1e1e;
+    border-top: 1px solid #2b2b2b;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.terminal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+    background: #1e1e1e;
+    border-bottom: 1px solid #2b2b2b;
+    height: 35px;
+}
+
+.terminal-tabs {
+    display: flex;
+    gap: 20px;
+}
+
+.terminal-tab {
+    font-size: 11px;
+    color: #8b949e;
+    cursor: pointer;
+    text-transform: uppercase;
+    padding: 8px 0;
+    position: relative;
+    user-select: none;
+}
+
+.terminal-tab:hover {
+    color: #e6e6e6;
+}
+
+.terminal-tab.active {
+    color: #e6e6e6;
+    font-weight: 500;
+}
+
+.terminal-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: #e6e6e6;
+}
+
+.terminal-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.terminal-action-btn {
+    background: none;
+    border: none;
+    color: #8b949e;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+}
+
+.terminal-action-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #e6e6e6;
+}
+
+.terminal-body {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #cccccc;
+    background: #1e1e1e;
+}
+
+.terminal-line {
+    margin-bottom: 2px;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.terminal-line.command {
+    margin-top: 8px;
+    font-weight: bold;
+}
+
+.prompt-path {
+    color: #4ec9b0;
+}
+
+.prompt-arrow {
+    color: #569cd6;
+    margin: 0 8px;
+}
+
+.terminal-input-line {
+    display: flex;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.terminal-input {
+    background: transparent;
+    border: none;
+    color: #cccccc;
+    font-family: inherit;
+    font-size: inherit;
+    flex: 1;
+    outline: none;
+    padding: 0;
+    margin: 0;
+}
+
+/* Sol-specific styling */
+.solana-output-success {
+    color: #14F195;
+}
+
+.solana-output-error {
+    color: #ff5555;
+}
+
+.solana-output-info {
+    color: #9945FF;
+}
+
+.solana-matrix-effect {
+    color: #00ff41;
+    text-shadow: 0 0 5px #00ff41;
+    animation: matrix-fade 2s ease-out;
+}
+
+@keyframes matrix-fade {
+    0% {
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.8;
+    }
+}
+
+/* TPS visualizer */
+.tps-bar {
+    display: inline-block;
+    height: 10px;
+    background: #14F195;
+    margin-right: 5px;
+}
