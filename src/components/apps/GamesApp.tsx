@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { VscRefresh } from 'react-icons/vsc';
+import { FaGamepad, FaQuestion, FaDragon, FaBrain } from 'react-icons/fa';
 import './GamesApp.css';
 
 // --- Types ---
@@ -31,25 +32,32 @@ const GameMenu: React.FC<{ onSelect: (game: GameType) => void }> = ({ onSelect }
     return (
         <div className="game-menu">
             <div className="menu-header">
-                <h1>🎮 Kawai Game Center</h1>
+                <FaGamepad className="header-icon" />
+                <h1>Game Center</h1>
                 <p>Powered by Kawai Plugin</p>
             </div>
 
             <div className="game-grid">
-                <div className="game-card" onClick={() => onSelect('quiz')}>
-                    <div className="game-icon">🌸</div>
-                    <h3>Kawai Quiz</h3>
-                    <p>Test your knowledge!</p>
+                <div className="game-card quiz" onClick={() => onSelect('quiz')}>
+                    <div className="card-icon"><FaQuestion /></div>
+                    <div className="card-content">
+                        <h3>Kawai Quiz</h3>
+                        <p>Test your knowledge!</p>
+                    </div>
                 </div>
-                <div className="game-card" onClick={() => onSelect('snake')}>
-                    <div className="game-icon">🐍</div>
-                    <h3>Solana Snake</h3>
-                    <p>Eat blocks, grow long!</p>
+                <div className="game-card snake" onClick={() => onSelect('snake')}>
+                    <div className="card-icon"><FaDragon /></div>
+                    <div className="card-content">
+                        <h3>Solana Snake</h3>
+                        <p>Eat blocks, grow long!</p>
+                    </div>
                 </div>
-                <div className="game-card" onClick={() => onSelect('memory')}>
-                    <div className="game-icon">🧠</div>
-                    <h3>Memory Match</h3>
-                    <p>Train your brain!</p>
+                <div className="game-card memory" onClick={() => onSelect('memory')}>
+                    <div className="card-icon"><FaBrain /></div>
+                    <div className="card-content">
+                        <h3>Memory Match</h3>
+                        <p>Train your brain!</p>
+                    </div>
                 </div>
             </div>
         </div>

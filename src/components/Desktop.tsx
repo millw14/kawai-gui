@@ -33,7 +33,7 @@ const Desktop: React.FC = () => {
         { id: 'github', name: 'GitHub', icon: '/icons/github.png', color: '#6e5494' },
         { id: 'games', name: 'Game Center', icon: '/icons/appliance.png', color: '#FF6B6B' },
         { id: 'analyzer', name: 'Wallet Analyzer', icon: '/icons/windows.png', color: '#14F195' },
-        { id: 'help', name: 'Get Started', icon: '/icons/folder.png', color: '#F06292' },
+        { id: 'help', name: 'Get Started', icon: '/icons/question-mark.png', color: '#F06292' },
     ];
 
     const openWindow = (appId: string) => {
@@ -100,7 +100,7 @@ const Desktop: React.FC = () => {
             case 'help':
                 windowConfig = {
                     title: 'Kawai Documentation',
-                    icon: '/icons/folder.png',
+                    icon: '/icons/question-mark.png',
                     component: <HelpApp />,
                 };
                 break;
